@@ -36,3 +36,6 @@ next-env.d.ts
 # OS Files
 .DS_Store
 Thumbs.db
+
+# Local Backups
+supabase/backup_data.json
