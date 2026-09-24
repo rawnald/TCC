@@ -85,3 +85,4 @@ SELECT
 FROM auth.users u
 ON CONFLICT (id) DO UPDATE SET
   role = EXCLUDED.role;
+
