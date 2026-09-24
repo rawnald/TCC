@@ -85,11 +85,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchSupabaseProfile = async (userId: string, email: string) => {
     if (!supabase) return;
     try {
+      // 1. Query profiles table
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (data && !error) {
         const activeProfile: UserProfile = {
@@ -97,21 +98,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: data.email,
           full_name: data.full_name || email.split('@')[0],
           callsign: data.callsign || 'OPERATOR',
-          role: data.role as UserRole,
+          role: (data.role as UserRole) || 'operator',
           avatar_url: data.avatar_url,
         };
         setUser(activeProfile);
-        setRole(data.role as UserRole);
-      } else {
-        const fallbackProfile: UserProfile = {
+        setRole((data.role as UserRole) || 'operator');
+        return;
+      }
+
+      // 2. Fallback & Auto-Heal: Read role and name from auth user_metadata
+      const { data: authData } = await supabase.auth.getUser();
+      const meta = authData?.user?.user_metadata || {};
+      const detectedRole = (meta.role as UserRole) || 'operator';
+      const fullName = meta.full_name || email.split('@')[0];
+      const callsign = meta.callsign || (detectedRole === 'admin' ? 'COMMANDER' : 'OPERATOR');
+
+      const fallbackProfile: UserProfile = {
+        id: userId,
+        email: email,
+        full_name: fullName,
+        callsign: callsign,
+        role: detectedRole,
+      };
+      setUser(fallbackProfile);
+      setRole(detectedRole);
+
+      // Auto-insert missing profile row into Supabase so it persists
+      try {
+        await supabase.from('profiles').upsert({
           id: userId,
           email: email,
-          full_name: email.split('@')[0],
-          callsign: 'OPERATOR',
-          role: 'operator',
-        };
-        setUser(fallbackProfile);
-        setRole('operator');
+          full_name: fullName,
+          callsign: callsign,
+          role: detectedRole,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      } catch (insertErr) {
+        console.warn('Auto-heal profile insertion note:', insertErr);
       }
     } catch (e) {
       console.error('Error fetching Supabase user profile:', e);
@@ -200,11 +224,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (data?.user) {
+          // Immediately upsert into public.profiles with the requested role
+          try {
+            await supabase.from('profiles').upsert({
+              id: data.user.id,
+              email: email.trim(),
+              full_name: fullName.trim() || email.split('@')[0],
+              callsign: callsign.trim() || (desiredRole === 'admin' ? 'COMMANDER' : 'OPERATOR'),
+              role: desiredRole,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+          } catch (profileErr) {
+            console.warn('Initial profile upsert note:', profileErr);
+          }
+
           if (!data.session) {
             setIsLoading(false);
             return {
               error:
-                'Account registered in Supabase! If you cannot log in, please check your email to confirm your account, or turn off "Confirm email" in your Supabase Auth settings.',
+                'Account registered in Supabase! If you cannot log in, please turn off "Confirm email" in your Supabase Auth settings.',
             };
           }
           await fetchSupabaseProfile(data.user.id, data.user.email || '');
