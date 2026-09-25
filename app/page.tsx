@@ -544,67 +544,8 @@ export default function Home() {
           {currentView === 'audit' && <AuditLogView logs={auditLogs} />}
 
           {currentView === 'calendar' && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <GoogleCalendarView />
-
-              {/* Tactical GIS Map positioned directly under Google Calendar */}
-              <div className="space-y-3 pt-2">
-                <div className="p-3.5 rounded-xl bg-white border border-slate-200 flex justify-between items-center shadow-sm">
-                  <div>
-                    <h3 className="text-sm font-sans font-bold text-slate-900 uppercase flex items-center space-x-2">
-                      <MapPin className="w-4 h-4 text-blue-600" />
-                      <span>Tactical GIS Geolocation Map</span>
-                    </h3>
-                    <p className="text-xs font-sans text-slate-500">
-                      Live mission & asset geolocations coordinated with active calendar schedule
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setCurrentView('map')}
-                    className="px-3 py-1.5 text-xs font-sans font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors"
-                  >
-                    Expand Fullscreen
-                  </button>
-                </div>
-                <TacticalMap
-                  records={overviewRecords}
-                  onSelectRecord={(rec) => {
-                    setEditingRecord(rec);
-                    setIsRecordModalOpen(true);
-                  }}
-                  isLive={true}
-                  onRefresh={loadSupabaseData}
-                  className="h-[480px] w-full"
-                />
-
-                {/* GH Snapshot under Tactical GIS Map */}
-                <div className="p-3.5 rounded-xl bg-white border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
-                      <GitBranch className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-sans font-bold text-slate-900 uppercase flex items-center space-x-2">
-                        <span>GH Snapshot Pipeline</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-sans font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                          READY
-                        </span>
-                      </div>
-                      <p className="text-xs font-sans text-slate-500">
-                        Commit schedule, geo-coordinates, and operational state to GitHub
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setIsSnapshotModalOpen(true)}
-                    disabled={isSnapshotting}
-                    className="flex items-center justify-center space-x-2 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-sans font-semibold transition-all shadow-sm active:scale-95 shrink-0"
-                  >
-                    <GitBranch className={`w-3.5 h-3.5 ${isSnapshotting ? 'animate-spin' : ''}`} />
-                    <span>{isSnapshotting ? 'Syncing...' : 'Open GH Snapshot'}</span>
-                  </button>
-                </div>
-              </div>
             </div>
           )}
 
