@@ -75,6 +75,8 @@ export interface MilitaryProfile {
   afpos: AFPOSBranch;
   designation: string;
   address?: string;
+  contact_number?: string;
+  mobile_number?: string;
   status: PersonnelStatus;
   status_other?: string;
   remarks: PersonnelRemarks;

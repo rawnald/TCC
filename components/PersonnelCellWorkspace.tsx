@@ -47,6 +47,7 @@ import {
   Image as ImageIcon,
   ExternalLink,
   Database,
+  Phone,
 } from 'lucide-react';
 
 interface PersonnelCellWorkspaceProps {
@@ -232,6 +233,8 @@ export default function PersonnelCellWorkspace({
               serial_number: meta.serial_number || r.code || '',
               afpos: meta.afpos || 'INF',
               designation: meta.designation || r.description || '',
+              contact_number: meta.contact_number || meta.mobile_number || '',
+              mobile_number: meta.mobile_number || meta.contact_number || '',
               address: meta.address || r.location_name || '',
               status: meta.status || (r.status === 'active' ? 'MWB' : 'Passes'),
               status_other: meta.status_other,
@@ -292,6 +295,8 @@ export default function PersonnelCellWorkspace({
           afpos: profileData.afpos,
           designation: profileData.designation,
           address: profileData.address || '',
+          contact_number: profileData.contact_number || profileData.mobile_number || '',
+          mobile_number: profileData.mobile_number || profileData.contact_number || '',
           status: profileData.status,
           remarks: profileData.remarks,
           security_clearance_file: profileData.security_clearance_file || null,
@@ -394,6 +399,8 @@ export default function PersonnelCellWorkspace({
         (p.afpos && p.afpos.toLowerCase().includes(q)) ||
         (p.designation && p.designation.toLowerCase().includes(q)) ||
         (p.address && p.address.toLowerCase().includes(q)) ||
+        (p.contact_number && p.contact_number.toLowerCase().includes(q)) ||
+        (p.mobile_number && p.mobile_number.toLowerCase().includes(q)) ||
         (p.status && p.status.toLowerCase().includes(q)) ||
         (p.remarks && p.remarks.toLowerCase().includes(q));
 
@@ -731,6 +738,7 @@ NOTIFY pgrst, 'reload schema';`;
                 <th className="py-3 px-3">Designation</th>
                 <th className="py-3 px-3">Status</th>
                 <th className="py-3 px-3">Remarks</th>
+                <th className="py-3 px-3">Contact # / Mobile</th>
                 <th className="py-3 px-3">Address</th>
                 <th className="py-3 px-3 text-center">Files Attached</th>
                 <th className="py-3 px-3 text-right sticky right-0 bg-slate-50 shadow-[-4px_0_6px_rgba(0,0,0,0.04)]">
@@ -741,7 +749,7 @@ NOTIFY pgrst, 'reload schema';`;
             <tbody className="divide-y divide-slate-100 bg-white">
               {filteredProfiles.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center text-slate-400 font-sans text-xs">
+                  <td colSpan={11} className="py-16 text-center text-slate-400 font-sans text-xs">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <Users className="w-9 h-9 text-slate-300 mb-1" />
                       <p className="text-sm text-slate-700 font-bold">No personnel records found in Supabase.</p>
@@ -825,6 +833,18 @@ NOTIFY pgrst, 'reload schema';`;
                         <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${remarksBadge.bg} ${remarksBadge.color}`}>
                           {remarksBadge.label}
                         </span>
+                      </td>
+
+                      {/* Contact # / Mobile */}
+                      <td className="py-3 px-3">
+                        {p.mobile_number || p.contact_number ? (
+                          <div className="flex items-center space-x-1.5 font-mono text-[11px] text-slate-700 whitespace-nowrap">
+                            <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span>{p.mobile_number || p.contact_number}</span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-[11px] italic">—</span>
+                        )}
                       </td>
 
                       {/* Address */}
@@ -954,6 +974,14 @@ NOTIFY pgrst, 'reload schema';`;
                     <span className="text-blue-700 font-semibold shrink-0">{p.afpos || 'N/A'}</span>
                   </div>
                 </div>
+
+                {/* Contact # / Mobile */}
+                {(p.mobile_number || p.contact_number) && (
+                  <div className="flex items-center space-x-1.5 text-[11px] font-sans text-slate-600 bg-slate-50/60 px-2 py-1 rounded border border-slate-100">
+                    <Phone className="w-3 h-3 text-blue-600 shrink-0" />
+                    <span className="font-mono font-medium">{p.mobile_number || p.contact_number}</span>
+                  </div>
+                )}
 
                 {/* Remarks & Attached Files */}
                 <div className="flex items-center justify-between text-[11px] font-sans">

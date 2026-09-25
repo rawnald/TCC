@@ -63,7 +63,7 @@ export default function LoginPage() {
               Tactical Command Center
             </div>
             <div className="text-[10px] text-blue-600 font-sans flex items-center space-x-1.5 font-semibold">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-600" />
+              
               <span>JOINT TASK FORCE CENTRAL</span>
             </div>
           </div>

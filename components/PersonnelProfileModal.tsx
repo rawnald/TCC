@@ -24,6 +24,7 @@ import {
   Loader2,
   Building2,
   FileCheck,
+  Phone,
 } from 'lucide-react';
 
 interface PersonnelProfileModalProps {
@@ -125,6 +126,7 @@ export default function PersonnelProfileModal({
   const [serialNumber, setSerialNumber] = useState('');
   const [afpos, setAfpos] = useState<AFPOSBranch>('INF');
   const [designation, setDesignation] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
   const [address, setAddress] = useState('');
 
   // Status & Remarks
@@ -207,6 +209,7 @@ export default function PersonnelProfileModal({
       setSerialNumber(initialProfile.serial_number || '');
       setAfpos(initialProfile.afpos || 'INF');
       setDesignation(initialProfile.designation || initialProfile.position_role || '');
+      setContactNumber(initialProfile.contact_number || initialProfile.mobile_number || '');
       setAddress(initialProfile.address || initialProfile.current_location || '');
 
       // Status
@@ -247,6 +250,7 @@ export default function PersonnelProfileModal({
       setSerialNumber('RA-' + Math.floor(10000000 + Math.random() * 90000000));
       setAfpos('INF');
       setDesignation('');
+      setContactNumber('');
       setAddress('');
       setStatus('MWB');
       setCustomStatus('');
@@ -342,6 +346,8 @@ export default function PersonnelProfileModal({
       serial_number: serialNumber.trim(),
       afpos,
       designation: designation.trim(),
+      contact_number: contactNumber.trim() || undefined,
+      mobile_number: contactNumber.trim() || undefined,
       address: address.trim() || undefined,
       status: finalStatus,
       status_other: status === 'Others' ? customStatus.trim() : undefined,
@@ -533,11 +539,11 @@ export default function PersonnelProfileModal({
             </div>
           </div>
 
-          {/* SECTION 3: AFPOS, DESIGNATION & ADDRESS */}
+          {/* SECTION 3: AFPOS, DESIGNATION, CONTACT & ADDRESS */}
           <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 space-y-3">
             <div className="flex items-center space-x-2 text-xs font-sans font-bold text-blue-700 uppercase pb-2 border-b border-slate-200">
               <Shield className="w-4 h-4 text-blue-600" />
-              <span>3. AFPOS Branch, Duty Designation & Address</span>
+              <span>3. AFPOS Branch, Duty Designation, Contact # & Address</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -573,17 +579,35 @@ export default function PersonnelProfileModal({
               </div>
             </div>
 
-            <div>
-              <label className="text-[11px] font-sans text-slate-700 block mb-1 font-semibold">
-                Complete Address / Station Location
-              </label>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="e.g. Camp Bravo Sector 4, Forward Operating Base, Zamboanga City"
-                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-sans text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-sm"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-[11px] font-sans text-slate-700 block mb-1 font-semibold">
+                  Contact # / Mobile Number
+                </label>
+                <div className="relative">
+                  <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="tel"
+                    value={contactNumber}
+                    onChange={(e) => setContactNumber(e.target.value)}
+                    placeholder="e.g. +63 917 123 4567 / 0917-123-4567"
+                    className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-xs font-sans text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-sans text-slate-700 block mb-1 font-semibold">
+                  Complete Address / Station Location
+                </label>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="e.g. Camp Bravo Sector 4, Forward Operating Base, Zamboanga City"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-sans text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-sm"
+                />
+              </div>
             </div>
           </div>
 

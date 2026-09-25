@@ -431,6 +431,8 @@ CREATE TABLE IF NOT EXISTS public.personnel_profiles (
     afpos TEXT NOT NULL DEFAULT 'INF',
     designation TEXT NOT NULL DEFAULT '',
     address TEXT DEFAULT '',
+    contact_number TEXT DEFAULT '',
+    mobile_number TEXT DEFAULT '',
     status TEXT NOT NULL DEFAULT 'MWB',
     status_other TEXT DEFAULT '',
     remarks TEXT NOT NULL DEFAULT 'Active',
