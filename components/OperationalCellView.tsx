@@ -32,6 +32,7 @@ import OperationCellWorkspace from './OperationCellWorkspace';
 import IntelligenceCellWorkspace from './IntelligenceCellWorkspace';
 import PersonnelCellWorkspace from './PersonnelCellWorkspace';
 import CMOCellWorkspace from './CMOCellWorkspace';
+import FireSupportCellWorkspace from './FireSupportCellWorkspace';
 
 interface OperationalCellConfig {
   id: OperationalCellType;
@@ -273,6 +274,17 @@ export default function OperationalCellView({
         />
       ) : cellId === 'cmo_cell' ? (
         <CMOCellWorkspace
+          records={records}
+          onSelectRecord={onSelectRecord}
+          onOpenCreate={onOpenCreate}
+          onSaveRecord={onSaveRecord}
+          onDeleteRecord={onDeleteRecord}
+          onRefreshData={onRefreshData}
+          dutyOfficer={config.dutyOfficer}
+          callsign={config.callsign}
+        />
+      ) : cellId === 'fire_support_cell' ? (
+        <FireSupportCellWorkspace
           records={records}
           onSelectRecord={onSelectRecord}
           onOpenCreate={onOpenCreate}
