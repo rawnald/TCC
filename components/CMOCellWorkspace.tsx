@@ -1829,34 +1829,7 @@ NOTIFY pgrst, 'reload schema';`;
       {activeTab === 'piags' && (
         <div className="space-y-4 font-sans">
           {/* Stat Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-              <div className="text-[11px] font-semibold text-slate-500 uppercase">Total PIAG Elements</div>
-              <div className="text-2xl font-bold text-blue-600 mt-1">{piagStats.total}</div>
-              <div className="text-xs text-slate-400 mt-0.5">Tracked Armed Groups</div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-              <div className="text-[11px] font-semibold text-slate-500 uppercase">Active / Mobilized</div>
-              <div className="text-2xl font-bold text-rose-600 mt-1">{piagStats.active}</div>
-              <div className="text-xs text-slate-400 mt-0.5">High kinetic threat</div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-              <div className="text-[11px] font-semibold text-slate-500 uppercase">Under Surveillance</div>
-              <div className="text-2xl font-bold text-slate-800 mt-1">{piagStats.monitored}</div>
-              <div className="text-xs text-slate-400 mt-0.5">Monitored staging areas</div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-              <div className="text-[11px] font-semibold text-slate-500 uppercase">AOR Geotagged Pins</div>
-              <div className="text-2xl font-bold text-blue-700 mt-1 flex items-center space-x-1.5">
-                <MapPin className="w-5 h-5 text-blue-600" />
-                <span>{piagMapRecords.length} Pins</span>
-              </div>
-              <div className="text-xs text-slate-400 mt-0.5">Plotted on Tactical Map</div>
-            </div>
-          </div>
+      
 
           {/* ── TACTICAL GEOSPATIAL MAP RADAR ─────────────────────────────────── */}
           <div
