@@ -89,6 +89,38 @@ export function isEnemyProfileRecord(item: any): boolean {
   return false;
 }
 
+/**
+ * Helper to identify commissioned officers (2LT to General).
+ * Personnel with ranks 2LT to General have their full name formatted in uppercase.
+ */
+export function isOfficerRank(rank: string): boolean {
+  if (!rank) return false;
+  const normalized = rank.trim().toUpperCase();
+  const officerRanks = new Set([
+    '2LT',
+    '1LT',
+    'CPT',
+    'MAJ',
+    'LTC',
+    'COL',
+    'BGEN',
+    'MGEN',
+    'LTGEN',
+    'GEN',
+    'SECOND LIEUTENANT',
+    'FIRST LIEUTENANT',
+    'CAPTAIN',
+    'MAJOR',
+    'LIEUTENANT COLONEL',
+    'COLONEL',
+    'BRIGADIER GENERAL',
+    'MAJOR GENERAL',
+    'LIEUTENANT GENERAL',
+    'GENERAL',
+  ]);
+  return officerRanks.has(normalized);
+}
+
 export type PersonnelTab = 'roster' | 'perstat';
 
 export default function PersonnelCellWorkspace({
@@ -763,9 +795,11 @@ NOTIFY pgrst, 'reload schema';`;
                   const remarksBadge = getRemarksBadge(p.remarks);
                   const hasClearance = !!p.security_clearance_file;
                   const hasSoi = !!p.soi_file;
-                  const displayName = p.last_name
+                  const isOfficer = isOfficerRank(p.rank);
+                  const rawName = p.last_name
                     ? `${p.last_name}, ${p.first_name} ${p.middle_name || ''}`.trim()
                     : p.full_name || '—';
+                  const displayName = isOfficer ? rawName.toUpperCase() : rawName;
 
                   return (
                     <tr
@@ -775,10 +809,16 @@ NOTIFY pgrst, 'reload schema';`;
                       {/* Rank & Full Name */}
                       <td className="py-3 px-3">
                         <div className="flex items-center space-x-2">
-                          <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-bold border shrink-0 ${
+                            isOfficer
+                              ? 'bg-blue-100 text-blue-800 border-blue-300 font-extrabold shadow-sm'
+                              : 'bg-blue-50 text-blue-700 border-blue-200'
+                          }`}>
                             {p.rank}
                           </span>
-                          <span className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+                          <span className={`text-slate-900 group-hover:text-blue-600 transition-colors ${
+                            isOfficer ? 'font-bold uppercase tracking-wide' : 'font-semibold'
+                          }`}>
                             {displayName}
                           </span>
                         </div>
@@ -933,9 +973,11 @@ NOTIFY pgrst, 'reload schema';`;
           {filteredProfiles.map((p) => {
             const statusBadge = getStatusBadge(p.status);
             const remarksBadge = getRemarksBadge(p.remarks);
-            const displayName = p.last_name
+            const isOfficer = isOfficerRank(p.rank);
+            const rawName = p.last_name
               ? `${p.last_name}, ${p.first_name} ${p.middle_name || ''}`.trim()
               : p.full_name || '—';
+            const displayName = isOfficer ? rawName.toUpperCase() : rawName;
 
             return (
               <div
@@ -945,11 +987,17 @@ NOTIFY pgrst, 'reload schema';`;
                 {/* Header: Rank + Name + Status */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center space-x-2.5 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 font-sans font-bold text-xs shrink-0 shadow-sm">
+                    <div className={`w-9 h-9 rounded-lg border flex items-center justify-center font-sans font-bold text-xs shrink-0 shadow-sm ${
+                      isOfficer
+                        ? 'bg-blue-100 text-blue-900 border-blue-300 font-extrabold'
+                        : 'bg-blue-50 text-blue-700 border-blue-200'
+                    }`}>
                       {p.rank}
                     </div>
                     <div className="min-w-0">
-                      <div className="text-xs font-sans font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                      <div className={`text-xs font-sans text-slate-900 truncate group-hover:text-blue-600 transition-colors ${
+                        isOfficer ? 'font-bold uppercase tracking-wide' : 'font-bold'
+                      }`}>
                         {p.rank} {displayName}
                       </div>
                       <div className="text-[11px] font-sans text-slate-500 font-medium mt-0.5">
