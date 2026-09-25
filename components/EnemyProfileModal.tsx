@@ -88,7 +88,9 @@ export default function EnemyProfileModal({
 
   // ── Address Cascading States (from DIB modal) ──────────────────────────────
   const [province, setProvince] = useState('Maguindanao del Sur');
+  const [customProvince, setCustomProvince] = useState('');
   const [municipality, setMunicipality] = useState('Datu Piang (Dulawan)');
+  const [customMunicipality, setCustomMunicipality] = useState('');
   const [barangay, setBarangay] = useState('Poblacion');
   const [customBarangay, setCustomBarangay] = useState('');
   const [purokSitio, setPurokSitio] = useState('Purok 1');
@@ -129,9 +131,11 @@ export default function EnemyProfileModal({
   const producedAddress = useMemo(() => {
     const activePurok = purokSitio === 'Custom' ? customPurok.trim() : purokSitio.trim();
     const activeBrgy = barangay === 'Custom' ? customBarangay.trim() : barangay.trim();
-    const parts = [activePurok, activeBrgy, municipality, province].filter(Boolean);
+    const activeMuni = municipality === 'Custom' ? customMunicipality.trim() : municipality.trim();
+    const activeProv = province === 'Custom' ? customProvince.trim() : province.trim();
+    const parts = [activePurok, activeBrgy, activeMuni, activeProv].filter(Boolean);
     return parts.join(', ');
-  }, [purokSitio, customPurok, barangay, customBarangay, municipality, province]);
+  }, [purokSitio, customPurok, barangay, customBarangay, municipality, customMunicipality, province, customProvince]);
 
   // Effective address
   const effectiveAddress = useManualAddress ? manualAddress : producedAddress;
@@ -157,13 +161,39 @@ export default function EnemyProfileModal({
 
         if (initialData.province && PH_PROVINCES[initialData.province]) {
           setProvince(initialData.province);
+          setCustomProvince('');
+        } else if (initialData.province) {
+          setProvince('Custom');
+          setCustomProvince(initialData.province);
         } else {
           setProvince('Maguindanao del Sur');
+          setCustomProvince('');
         }
 
-        setMunicipality(initialData.municipality || 'Datu Piang (Dulawan)');
-        setBarangay(initialData.barangay || 'Poblacion');
-        setCustomBarangay('');
+        const activeMunis = PH_PROVINCES[initialData.province || 'Maguindanao del Sur']?.municipalities || [];
+        if (initialData.municipality && activeMunis.some((m) => m.name === initialData.municipality)) {
+          setMunicipality(initialData.municipality);
+          setCustomMunicipality('');
+        } else if (initialData.municipality) {
+          setMunicipality('Custom');
+          setCustomMunicipality(initialData.municipality);
+        } else {
+          setMunicipality(activeMunis[0]?.name || 'Datu Piang (Dulawan)');
+          setCustomMunicipality('');
+        }
+
+        const activeBrgys = activeMunis.find((m) => m.name === initialData.municipality)?.barangays || [];
+        if (initialData.barangay && activeBrgys.includes(initialData.barangay)) {
+          setBarangay(initialData.barangay);
+          setCustomBarangay('');
+        } else if (initialData.barangay) {
+          setBarangay('Custom');
+          setCustomBarangay(initialData.barangay);
+        } else {
+          setBarangay(activeBrgys[0] || 'Poblacion');
+          setCustomBarangay('');
+        }
+
         setPurokSitio(initialData.purok_sitio || 'Purok 1');
         setCustomPurok('');
         setManualAddress(initialData.address || '');
@@ -191,7 +221,9 @@ export default function EnemyProfileModal({
         setPictureUrl('');
         setUrlInput('');
         setProvince('Maguindanao del Sur');
+        setCustomProvince('');
         setMunicipality('Datu Piang (Dulawan)');
+        setCustomMunicipality('');
         setBarangay('Poblacion');
         setCustomBarangay('');
         setPurokSitio('Purok 1');
@@ -213,21 +245,50 @@ export default function EnemyProfileModal({
   // When province changes, reset municipality to first in list
   const handleProvinceChange = (newProv: string) => {
     setProvince(newProv);
+    if (newProv === 'Custom') {
+      setCustomProvince('');
+      setMunicipality('Custom');
+      setCustomMunicipality('');
+      setBarangay('Custom');
+      setCustomBarangay('');
+      return;
+    }
+    setCustomProvince('');
     const munList = PH_PROVINCES[newProv]?.municipalities || [];
     const firstMun = munList[0]?.name || '';
     setMunicipality(firstMun);
+    setCustomMunicipality('');
     const firstBrgy = munList[0]?.barangays[0] || '';
     setBarangay(firstBrgy);
     setCustomBarangay('');
+    if (munList[0]?.coords) {
+      setLat(munList[0].coords[0]);
+      setLng(munList[0].coords[1]);
+      setMgrsInput(toMGRS(munList[0].coords[0], munList[0].coords[1]));
+      setMgrsValid(true);
+    }
   };
 
   // When municipality changes, reset barangay
   const handleMunicipalityChange = (newMun: string) => {
     setMunicipality(newMun);
+    if (newMun === 'Custom') {
+      setCustomMunicipality('');
+      setBarangay('Custom');
+      setCustomBarangay('');
+      return;
+    }
+    setCustomMunicipality('');
     const found = municipalities.find((m) => m.name === newMun);
     const firstBrgy = found?.barangays[0] || 'Poblacion';
     setBarangay(firstBrgy);
     setCustomBarangay('');
+    if (found?.coords) {
+      setLat(found.coords[0]);
+      setLng(found.coords[1]);
+      setMgrsInput(toMGRS(found.coords[0], found.coords[1]));
+      setMgrsValid(true);
+    }
   };
 
   // MGRS live input parser
@@ -373,8 +434,16 @@ export default function EnemyProfileModal({
         threat_group_other: threatGroup === 'Others' ? threatGroupOther.trim() : undefined,
         position_role: positionRole.trim() || undefined,
         address: effectiveAddress.trim() || producedAddress.trim(),
-        province: useManualAddress ? undefined : province,
-        municipality: useManualAddress ? undefined : municipality,
+        province: useManualAddress
+          ? undefined
+          : province === 'Custom'
+          ? customProvince.trim() || 'Province'
+          : province,
+        municipality: useManualAddress
+          ? undefined
+          : municipality === 'Custom'
+          ? customMunicipality.trim() || 'Municipality'
+          : municipality,
         barangay:
           useManualAddress
             ? undefined
@@ -721,7 +790,18 @@ export default function EnemyProfileModal({
                           {prov}
                         </option>
                       ))}
+                      <option value="Custom">+ Other (Write-in Province)</option>
                     </select>
+                    {province === 'Custom' && (
+                      <input
+                        type="text"
+                        required
+                        placeholder="Enter province..."
+                        value={customProvince}
+                        onChange={(e) => setCustomProvince(e.target.value)}
+                        className="w-full bg-white border border-slate-300 text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 rounded-lg px-3 py-1.5 text-xs text-slate-800 mt-1.5 focus:outline-none"
+                      />
+                    )}
                   </div>
 
                   {/* Municipality */}
@@ -739,7 +819,18 @@ export default function EnemyProfileModal({
                           {m.name}
                         </option>
                       ))}
+                      <option value="Custom">+ Other (Write-in Municipality)</option>
                     </select>
+                    {municipality === 'Custom' && (
+                      <input
+                        type="text"
+                        required
+                        placeholder="Enter municipality..."
+                        value={customMunicipality}
+                        onChange={(e) => setCustomMunicipality(e.target.value)}
+                        className="w-full bg-white border border-slate-300 text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 rounded-lg px-3 py-1.5 text-xs text-slate-800 mt-1.5 focus:outline-none"
+                      />
+                    )}
                   </div>
                 </div>
 

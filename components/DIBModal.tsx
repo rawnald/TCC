@@ -80,7 +80,9 @@ export default function DIBModal({
 
   // Address Cascading States
   const [province, setProvince] = useState('Maguindanao del Sur');
+  const [customProvince, setCustomProvince] = useState('');
   const [municipality, setMunicipality] = useState('Datu Piang (Dulawan)');
+  const [customMunicipality, setCustomMunicipality] = useState('');
   const [barangay, setBarangay] = useState('Poblacion');
   const [customBarangay, setCustomBarangay] = useState('');
   const [purokSitio, setPurokSitio] = useState('Purok 1');
@@ -110,9 +112,11 @@ export default function DIBModal({
   const producedAddress = useMemo(() => {
     const activePurok = purokSitio === 'Custom' ? customPurok.trim() : purokSitio.trim();
     const activeBrgy = barangay === 'Custom' ? customBarangay.trim() : barangay.trim();
-    const parts = [activePurok, activeBrgy, municipality, province].filter(Boolean);
+    const activeMuni = municipality === 'Custom' ? customMunicipality.trim() : municipality.trim();
+    const activeProv = province === 'Custom' ? customProvince.trim() : province.trim();
+    const parts = [activePurok, activeBrgy, activeMuni, activeProv].filter(Boolean);
     return parts.join(', ');
-  }, [purokSitio, customPurok, barangay, customBarangay, municipality, province]);
+  }, [purokSitio, customPurok, barangay, customBarangay, municipality, customMunicipality, province, customProvince]);
 
   // Reset or initialize on modal open
   useEffect(() => {
@@ -130,17 +134,38 @@ export default function DIBModal({
         setSourceEvaluation(initialData.source_evaluation || 'A1 - Confirmed Technical ISR');
         setTypeVal(initialData.type || 'Violent');
 
-        setProvince(initialData.province || 'Maguindanao del Sur');
-        setMunicipality(initialData.municipality || 'Datu Piang (Dulawan)');
+        if (initialData.province && PH_PROVINCES[initialData.province]) {
+          setProvince(initialData.province);
+          setCustomProvince('');
+        } else if (initialData.province) {
+          setProvince('Custom');
+          setCustomProvince(initialData.province);
+        } else {
+          setProvince('Maguindanao del Sur');
+          setCustomProvince('');
+        }
 
-        if (initialData.barangay && barangays.includes(initialData.barangay)) {
+        const activeMunis = PH_PROVINCES[initialData.province || 'Maguindanao del Sur']?.municipalities || [];
+        if (initialData.municipality && activeMunis.some((m) => m.name === initialData.municipality)) {
+          setMunicipality(initialData.municipality);
+          setCustomMunicipality('');
+        } else if (initialData.municipality) {
+          setMunicipality('Custom');
+          setCustomMunicipality(initialData.municipality);
+        } else {
+          setMunicipality(activeMunis[0]?.name || 'Datu Piang (Dulawan)');
+          setCustomMunicipality('');
+        }
+
+        const activeBrgys = activeMunis.find((m) => m.name === initialData.municipality)?.barangays || [];
+        if (initialData.barangay && activeBrgys.includes(initialData.barangay)) {
           setBarangay(initialData.barangay);
           setCustomBarangay('');
         } else if (initialData.barangay) {
           setBarangay('Custom');
           setCustomBarangay(initialData.barangay);
         } else {
-          setBarangay(barangays[0] || 'Poblacion');
+          setBarangay(activeBrgys[0] || 'Poblacion');
           setCustomBarangay('');
         }
 
@@ -175,7 +200,9 @@ export default function DIBModal({
         const defaultMGRS = toMGRS(defaultCoords[0], defaultCoords[1]);
 
         setProvince(defaultProv);
+        setCustomProvince('');
         setMunicipality(defaultMuni);
+        setCustomMunicipality('');
         setBarangay('Poblacion');
         setCustomBarangay('');
         setPurokSitio('Purok 1');
@@ -199,10 +226,20 @@ export default function DIBModal({
   // When province changes, update municipality and coordinates
   const handleProvinceChange = (newProv: string) => {
     setProvince(newProv);
+    if (newProv === 'Custom') {
+      setCustomProvince('');
+      setMunicipality('Custom');
+      setCustomMunicipality('');
+      setBarangay('Custom');
+      setCustomBarangay('');
+      return;
+    }
+    setCustomProvince('');
     const provInfo = PH_PROVINCES[newProv];
     if (provInfo && provInfo.municipalities.length > 0) {
       const firstMuni = provInfo.municipalities[0];
       setMunicipality(firstMuni.name);
+      setCustomMunicipality('');
       setBarangay(firstMuni.barangays[0] || 'Poblacion');
       setCustomBarangay('');
       setLat(firstMuni.coords[0]);
@@ -216,6 +253,13 @@ export default function DIBModal({
   // When municipality changes, update barangay and coordinates
   const handleMunicipalityChange = (newMuni: string) => {
     setMunicipality(newMuni);
+    if (newMuni === 'Custom') {
+      setCustomMunicipality('');
+      setBarangay('Custom');
+      setCustomBarangay('');
+      return;
+    }
+    setCustomMunicipality('');
     const found = municipalities.find((m) => m.name === newMuni);
     if (found) {
       setBarangay(found.barangays[0] || 'Poblacion');
@@ -264,6 +308,8 @@ export default function DIBModal({
       finalMgrs = toMGRS(finalLat, finalLng);
     }
 
+    const finalProvince = province === 'Custom' ? customProvince.trim() || 'Province' : province;
+    const finalMunicipality = municipality === 'Custom' ? customMunicipality.trim() || 'Municipality' : municipality;
     const finalBarangay = barangay === 'Custom' ? customBarangay.trim() || 'Barangay' : barangay;
     const finalPurok = purokSitio === 'Custom' ? customPurok.trim() || 'Purok' : purokSitio;
 
@@ -281,8 +327,8 @@ export default function DIBModal({
       source_evaluation: sourceEvaluation.trim(),
       type: typeVal,
       address: producedAddress,
-      province,
-      municipality,
+      province: finalProvince,
+      municipality: finalMunicipality,
       barangay: finalBarangay,
       purok_sitio: finalPurok,
       lat: finalLat,
@@ -493,7 +539,18 @@ export default function DIBModal({
                       {p}
                     </option>
                   ))}
+                  <option value="Custom">+ Other (Write-in Province)</option>
                 </select>
+                {province === 'Custom' && (
+                  <input
+                    type="text"
+                    required
+                    value={customProvince}
+                    onChange={(e) => setCustomProvince(e.target.value)}
+                    placeholder="Enter custom province"
+                    className="w-full mt-1.5 bg-white border border-blue-300 rounded px-2 py-1 text-slate-800 text-[11px] focus:outline-none focus:border-blue-600"
+                  />
+                )}
               </div>
 
               {/* Municipality */}
@@ -509,7 +566,18 @@ export default function DIBModal({
                       {m.name}
                     </option>
                   ))}
+                  <option value="Custom">+ Other (Write-in Municipality)</option>
                 </select>
+                {municipality === 'Custom' && (
+                  <input
+                    type="text"
+                    required
+                    value={customMunicipality}
+                    onChange={(e) => setCustomMunicipality(e.target.value)}
+                    placeholder="Enter custom municipality"
+                    className="w-full mt-1.5 bg-white border border-blue-300 rounded px-2 py-1 text-slate-800 text-[11px] focus:outline-none focus:border-blue-600"
+                  />
+                )}
               </div>
 
               {/* Barangay */}

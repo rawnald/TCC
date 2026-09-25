@@ -70,7 +70,9 @@ export default function PIAGModal({
 
   // Location & Coordinates
   const [province, setProvince] = useState('Maguindanao del Sur');
+  const [customProvince, setCustomProvince] = useState('');
   const [municipality, setMunicipality] = useState('Datu Piang (Dulawan)');
+  const [customMunicipality, setCustomMunicipality] = useState('');
   const [barangay, setBarangay] = useState('Poblacion');
   const [customBarangay, setCustomBarangay] = useState('');
   const [purokSitio, setPurokSitio] = useState('');
@@ -138,9 +140,41 @@ export default function PIAGModal({
       setAffiliatedPolitician(initialData.affiliated_politician_faction || '');
       setEstimatedStrength(initialData.estimated_strength || '');
       setFirearmsInventory(initialData.total_est_firearms || initialData.firearms_inventory || '');
-      setProvince(initialData.province || 'Maguindanao del Sur');
-      setMunicipality(initialData.municipality || 'Datu Piang (Dulawan)');
-      setBarangay(initialData.barangay || 'Poblacion');
+      if (initialData.province && PH_PROVINCES[initialData.province]) {
+        setProvince(initialData.province);
+        setCustomProvince('');
+      } else if (initialData.province) {
+        setProvince('Custom');
+        setCustomProvince(initialData.province);
+      } else {
+        setProvince('Maguindanao del Sur');
+        setCustomProvince('');
+      }
+
+      const activeMunis = PH_PROVINCES[initialData.province || 'Maguindanao del Sur']?.municipalities || [];
+      if (initialData.municipality && activeMunis.some((m) => m.name === initialData.municipality)) {
+        setMunicipality(initialData.municipality);
+        setCustomMunicipality('');
+      } else if (initialData.municipality) {
+        setMunicipality('Custom');
+        setCustomMunicipality(initialData.municipality);
+      } else {
+        setMunicipality(activeMunis[0]?.name || 'Datu Piang (Dulawan)');
+        setCustomMunicipality('');
+      }
+
+      const activeBrgys = activeMunis.find((m) => m.name === initialData.municipality)?.barangays || [];
+      if (initialData.barangay && activeBrgys.includes(initialData.barangay)) {
+        setBarangay(initialData.barangay);
+        setCustomBarangay('');
+      } else if (initialData.barangay) {
+        setBarangay('Custom');
+        setCustomBarangay(initialData.barangay);
+      } else {
+        setBarangay(activeBrgys[0] || 'Poblacion');
+        setCustomBarangay('');
+      }
+
       setPurokSitio(initialData.purok_sitio || '');
       setMgrsInput(initialData.mgrs || '');
       setLat(Number(initialData.lat) || 6.9536);
@@ -160,7 +194,9 @@ export default function PIAGModal({
       setEstimatedStrength('15-20 armed combatants');
       setFirearmsInventory('12 (8x M16, 2x M14, 1x M203, 1x Cal .45)');
       setProvince('Maguindanao del Sur');
+      setCustomProvince('');
       setMunicipality('Datu Piang (Dulawan)');
+      setCustomMunicipality('');
       setBarangay('Poblacion');
       setCustomBarangay('');
       setPurokSitio('');
@@ -180,10 +216,20 @@ export default function PIAGModal({
   // ── Province & Municipality handlers ───────────────────────────────────────
   const handleProvinceChange = (newProv: string) => {
     setProvince(newProv);
+    if (newProv === 'Custom') {
+      setCustomProvince('');
+      setMunicipality('Custom');
+      setCustomMunicipality('');
+      setBarangay('Custom');
+      setCustomBarangay('');
+      return;
+    }
+    setCustomProvince('');
     const provInfo = PH_PROVINCES[newProv];
     if (provInfo && provInfo.municipalities.length > 0) {
       const firstMuni = provInfo.municipalities[0];
       setMunicipality(firstMuni.name);
+      setCustomMunicipality('');
       setBarangay(firstMuni.barangays[0] || 'Poblacion');
       setCustomBarangay('');
       setLat(firstMuni.coords[0]);
@@ -195,6 +241,13 @@ export default function PIAGModal({
 
   const handleMunicipalityChange = (newMuni: string) => {
     setMunicipality(newMuni);
+    if (newMuni === 'Custom') {
+      setCustomMunicipality('');
+      setBarangay('Custom');
+      setCustomBarangay('');
+      return;
+    }
+    setCustomMunicipality('');
     const found = municipalities.find((m) => m.name === newMuni);
     if (found) {
       setBarangay(found.barangays[0] || 'Poblacion');
@@ -257,8 +310,10 @@ export default function PIAGModal({
       }
     }
 
+    const finalProvince = province === 'Custom' ? customProvince.trim() || 'Province' : province;
+    const finalMunicipality = municipality === 'Custom' ? customMunicipality.trim() || 'Municipality' : municipality;
     const finalBarangay = barangay === 'Custom' ? customBarangay.trim() || 'Barangay' : barangay;
-    const fullAddr = [purokSitio.trim(), finalBarangay, municipality, province].filter(Boolean).join(', ');
+    const fullAddr = [purokSitio.trim(), finalBarangay, finalMunicipality, finalProvince].filter(Boolean).join(', ');
 
     const recordId = initialData?.id || generateUUID();
     const record: PIAGLocationRecord = {
@@ -269,8 +324,8 @@ export default function PIAGModal({
       estimated_strength: estimatedStrength.trim() || 'Unspecified',
       firearms_inventory: firearmsInventory.trim() || undefined,
       total_est_firearms: firearmsInventory.trim() || undefined,
-      province,
-      municipality,
+      province: finalProvince,
+      municipality: finalMunicipality,
       barangay: finalBarangay,
       purok_sitio: purokSitio.trim() || undefined,
       address: fullAddr,
@@ -562,7 +617,18 @@ export default function PIAGModal({
                       {p}
                     </option>
                   ))}
+                  <option value="Custom">+ Other (Write-in Province)</option>
                 </select>
+                {province === 'Custom' && (
+                  <input
+                    type="text"
+                    required
+                    value={customProvince}
+                    onChange={(e) => setCustomProvince(e.target.value)}
+                    placeholder="Enter custom province"
+                    className="w-full mt-1.5 bg-white border border-amber-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-blue-600 shadow-sm"
+                  />
+                )}
               </div>
 
               <div>
@@ -577,7 +643,18 @@ export default function PIAGModal({
                       {m.name}
                     </option>
                   ))}
+                  <option value="Custom">+ Other (Write-in Municipality)</option>
                 </select>
+                {municipality === 'Custom' && (
+                  <input
+                    type="text"
+                    required
+                    value={customMunicipality}
+                    onChange={(e) => setCustomMunicipality(e.target.value)}
+                    placeholder="Enter custom municipality"
+                    className="w-full mt-1.5 bg-white border border-amber-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-blue-600 shadow-sm"
+                  />
+                )}
               </div>
 
               <div>
@@ -592,25 +669,20 @@ export default function PIAGModal({
                       {b}
                     </option>
                   ))}
-                  <option value="Custom">+ Custom Barangay</option>
+                  <option value="Custom">+ Other (Write-in Barangay)</option>
                 </select>
+                {barangay === 'Custom' && (
+                  <input
+                    type="text"
+                    required
+                    value={customBarangay}
+                    onChange={(e) => setCustomBarangay(e.target.value)}
+                    placeholder="Enter custom barangay"
+                    className="w-full mt-1.5 bg-white border border-amber-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-blue-600 shadow-sm"
+                  />
+                )}
               </div>
             </div>
-
-            {barangay === 'Custom' && (
-              <div>
-                <label className="text-[11px] text-slate-700 block mb-1 font-semibold">
-                  Custom Barangay Name <span className="text-blue-600">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={customBarangay}
-                  onChange={(e) => setCustomBarangay(e.target.value)}
-                  placeholder="Enter barangay name"
-                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-blue-600 shadow-sm"
-                />
-              </div>
-            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div>

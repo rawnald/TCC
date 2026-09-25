@@ -114,7 +114,9 @@ export default function RidoModal({
 
   // Conflict Scene Location Cascading States
   const [province, setProvince] = useState('Maguindanao del Sur');
+  const [customProvince, setCustomProvince] = useState('');
   const [municipality, setMunicipality] = useState('Datu Piang (Dulawan)');
+  const [customMunicipality, setCustomMunicipality] = useState('');
   const [barangay, setBarangay] = useState('Poblacion');
   const [customBarangay, setCustomBarangay] = useState('');
   const [purokSitio, setPurokSitio] = useState('');
@@ -160,14 +162,17 @@ export default function RidoModal({
 
   // Auto-calculated full address
   const fullAddress = useMemo(() => {
+    const finalProv = province === 'Custom' ? customProvince.trim() : province;
+    const finalMuni = municipality === 'Custom' ? customMunicipality.trim() : municipality;
+    const finalBrgy = barangay === 'Custom' ? customBarangay.trim() : barangay;
     const parts = [
       purokSitio.trim(),
-      barangay === 'Custom' ? customBarangay.trim() : barangay,
-      municipality,
-      province,
+      finalBrgy,
+      finalMuni,
+      finalProv,
     ].filter(Boolean);
     return parts.join(', ');
-  }, [purokSitio, barangay, customBarangay, municipality, province]);
+  }, [purokSitio, barangay, customBarangay, municipality, customMunicipality, province, customProvince]);
 
   // Fetch PIAGs from Supabase cmo_piags table for dropdown
   useEffect(() => {
@@ -267,9 +272,41 @@ export default function RidoModal({
       setPartyBMgrs(initialData.party_b_mgrs || '');
 
       // Scene Location
-      setProvince(initialData.province || 'Maguindanao del Sur');
-      setMunicipality(initialData.municipality || 'Datu Piang (Dulawan)');
-      setBarangay(initialData.barangay || 'Poblacion');
+      if (initialData.province && PH_PROVINCES[initialData.province]) {
+        setProvince(initialData.province);
+        setCustomProvince('');
+      } else if (initialData.province) {
+        setProvince('Custom');
+        setCustomProvince(initialData.province);
+      } else {
+        setProvince('Maguindanao del Sur');
+        setCustomProvince('');
+      }
+
+      const activeMunis = PH_PROVINCES[initialData.province || 'Maguindanao del Sur']?.municipalities || [];
+      if (initialData.municipality && activeMunis.some((m) => m.name === initialData.municipality)) {
+        setMunicipality(initialData.municipality);
+        setCustomMunicipality('');
+      } else if (initialData.municipality) {
+        setMunicipality('Custom');
+        setCustomMunicipality(initialData.municipality);
+      } else {
+        setMunicipality(activeMunis[0]?.name || 'Datu Piang (Dulawan)');
+        setCustomMunicipality('');
+      }
+
+      const activeBrgys = activeMunis.find((m) => m.name === initialData.municipality)?.barangays || [];
+      if (initialData.barangay && activeBrgys.includes(initialData.barangay)) {
+        setBarangay(initialData.barangay);
+        setCustomBarangay('');
+      } else if (initialData.barangay) {
+        setBarangay('Custom');
+        setCustomBarangay(initialData.barangay);
+      } else {
+        setBarangay(activeBrgys[0] || 'Poblacion');
+        setCustomBarangay('');
+      }
+
       setPurokSitio(initialData.purok_sitio || '');
       setMgrsInput(initialData.mgrs || '');
       setLat(Number(initialData.lat) || 6.9536);
@@ -310,7 +347,9 @@ export default function RidoModal({
 
       // Location
       setProvince('Maguindanao del Sur');
+      setCustomProvince('');
       setMunicipality('Datu Piang (Dulawan)');
+      setCustomMunicipality('');
       setBarangay('Poblacion');
       setCustomBarangay('');
       setPurokSitio('');
@@ -340,10 +379,20 @@ export default function RidoModal({
   // Province change handler
   const handleProvinceChange = (newProv: string) => {
     setProvince(newProv);
+    if (newProv === 'Custom') {
+      setCustomProvince('');
+      setMunicipality('Custom');
+      setCustomMunicipality('');
+      setBarangay('Custom');
+      setCustomBarangay('');
+      return;
+    }
+    setCustomProvince('');
     const provInfo = PH_PROVINCES[newProv];
     if (provInfo && provInfo.municipalities.length > 0) {
       const firstMuni = provInfo.municipalities[0];
       setMunicipality(firstMuni.name);
+      setCustomMunicipality('');
       setBarangay(firstMuni.barangays[0] || 'Poblacion');
       setCustomBarangay('');
       setLat(firstMuni.coords[0]);
@@ -357,6 +406,13 @@ export default function RidoModal({
   // Municipality change handler
   const handleMunicipalityChange = (newMuni: string) => {
     setMunicipality(newMuni);
+    if (newMuni === 'Custom') {
+      setCustomMunicipality('');
+      setBarangay('Custom');
+      setCustomBarangay('');
+      return;
+    }
+    setCustomMunicipality('');
     const found = municipalities.find((m) => m.name === newMuni);
     if (found) {
       setBarangay(found.barangays[0] || 'Poblacion');
@@ -442,6 +498,8 @@ export default function RidoModal({
       }
     }
 
+    const finalProvince = province === 'Custom' ? customProvince.trim() || 'Province' : province;
+    const finalMunicipality = municipality === 'Custom' ? customMunicipality.trim() || 'Municipality' : municipality;
     const finalBarangay = barangay === 'Custom' ? customBarangay.trim() || 'Barangay' : barangay;
     const feudingPartiesSummary = `${partyA.trim()} vs. ${partyB.trim()}`;
 
@@ -472,8 +530,8 @@ export default function RidoModal({
       party_b_lng: partyBLng,
 
       personalities_involved: compiledPersonalities,
-      province,
-      municipality,
+      province: finalProvince,
+      municipality: finalMunicipality,
       barangay: finalBarangay,
       purok_sitio: purokSitio.trim() || undefined,
       address: fullAddress,
@@ -791,7 +849,18 @@ export default function RidoModal({
                       {p}
                     </option>
                   ))}
+                  <option value="Custom">+ Other (Write-in Province)</option>
                 </select>
+                {province === 'Custom' && (
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter custom province..."
+                    value={customProvince}
+                    onChange={(e) => setCustomProvince(e.target.value)}
+                    className="w-full bg-white border border-blue-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 mt-2 focus:outline-none focus:border-blue-600"
+                  />
+                )}
               </div>
 
               {/* Municipality */}
@@ -809,7 +878,18 @@ export default function RidoModal({
                       {m.name}
                     </option>
                   ))}
+                  <option value="Custom">+ Other (Write-in Municipality)</option>
                 </select>
+                {municipality === 'Custom' && (
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter custom municipality..."
+                    value={customMunicipality}
+                    onChange={(e) => setCustomMunicipality(e.target.value)}
+                    className="w-full bg-white border border-blue-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 mt-2 focus:outline-none focus:border-blue-600"
+                  />
+                )}
               </div>
 
               {/* Barangay */}

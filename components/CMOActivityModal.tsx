@@ -62,8 +62,11 @@ export default function CMOActivityModal({
 
   // Location
   const [province, setProvince] = useState('Maguindanao del Sur');
+  const [customProvince, setCustomProvince] = useState('');
   const [municipality, setMunicipality] = useState('Datu Piang (Dulawan)');
+  const [customMunicipality, setCustomMunicipality] = useState('');
   const [barangay, setBarangay] = useState('Poblacion');
+  const [customBarangay, setCustomBarangay] = useState('');
 
   const [implementingUnit, setImplementingUnit] = useState('6th Civil-Military Operations Battalion (6CMOBn)');
   const [stakeholdersPartners, setStakeholdersPartners] = useState('');
@@ -92,9 +95,42 @@ export default function CMOActivityModal({
       setActivityTitle(initialData.activity_title || '');
       setActivityType(initialData.activity_type || ACTIVITY_TYPES[0]);
       setTargetCommunity(initialData.target_community || '');
-      setProvince(initialData.province || 'Maguindanao del Sur');
-      setMunicipality(initialData.municipality || 'Datu Piang (Dulawan)');
-      setBarangay(initialData.barangay || 'Poblacion');
+      
+      if (initialData.province && PH_PROVINCES[initialData.province]) {
+        setProvince(initialData.province);
+        setCustomProvince('');
+      } else if (initialData.province) {
+        setProvince('Custom');
+        setCustomProvince(initialData.province);
+      } else {
+        setProvince('Maguindanao del Sur');
+        setCustomProvince('');
+      }
+
+      const activeMunis = PH_PROVINCES[initialData.province || 'Maguindanao del Sur']?.municipalities || [];
+      if (initialData.municipality && activeMunis.some((m) => m.name === initialData.municipality)) {
+        setMunicipality(initialData.municipality);
+        setCustomMunicipality('');
+      } else if (initialData.municipality) {
+        setMunicipality('Custom');
+        setCustomMunicipality(initialData.municipality);
+      } else {
+        setMunicipality(activeMunis[0]?.name || 'Datu Piang (Dulawan)');
+        setCustomMunicipality('');
+      }
+
+      const activeBrgys = activeMunis.find((m) => m.name === initialData.municipality)?.barangays || [];
+      if (initialData.barangay && activeBrgys.includes(initialData.barangay)) {
+        setBarangay(initialData.barangay);
+        setCustomBarangay('');
+      } else if (initialData.barangay) {
+        setBarangay('Custom');
+        setCustomBarangay(initialData.barangay);
+      } else {
+        setBarangay(activeBrgys[0] || 'Poblacion');
+        setCustomBarangay('');
+      }
+
       setImplementingUnit(initialData.implementing_unit || '6th Civil-Military Operations Battalion (6CMOBn)');
       setStakeholdersPartners(initialData.stakeholders_partners || '');
       setBeneficiariesCount(Number(initialData.beneficiaries_count) || 0);
@@ -108,8 +144,11 @@ export default function CMOActivityModal({
       setActivityTypeCustom('');
       setTargetCommunity('');
       setProvince('Maguindanao del Sur');
+      setCustomProvince('');
       setMunicipality('Datu Piang (Dulawan)');
+      setCustomMunicipality('');
       setBarangay('Poblacion');
+      setCustomBarangay('');
       setImplementingUnit('6th Civil-Military Operations Battalion (6CMOBn)');
       setStakeholdersPartners('LGU, DSWD, Provincial Health Office');
       setBeneficiariesCount(150);
@@ -119,6 +158,43 @@ export default function CMOActivityModal({
       setError(null);
     }
   }, [isOpen, initialData]);
+
+  const handleProvinceChange = (newProv: string) => {
+    setProvince(newProv);
+    if (newProv === 'Custom') {
+      setCustomProvince('');
+      setMunicipality('Custom');
+      setCustomMunicipality('');
+      setBarangay('Custom');
+      setCustomBarangay('');
+      return;
+    }
+    setCustomProvince('');
+    const provInfo = PH_PROVINCES[newProv];
+    if (provInfo && provInfo.municipalities.length > 0) {
+      const firstMuni = provInfo.municipalities[0];
+      setMunicipality(firstMuni.name);
+      setCustomMunicipality('');
+      setBarangay(firstMuni.barangays[0] || 'Poblacion');
+      setCustomBarangay('');
+    }
+  };
+
+  const handleMunicipalityChange = (newMuni: string) => {
+    setMunicipality(newMuni);
+    if (newMuni === 'Custom') {
+      setCustomMunicipality('');
+      setBarangay('Custom');
+      setCustomBarangay('');
+      return;
+    }
+    setCustomMunicipality('');
+    const found = municipalities.find((m) => m.name === newMuni);
+    if (found) {
+      setBarangay(found.barangays[0] || 'Poblacion');
+      setCustomBarangay('');
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -135,6 +211,10 @@ export default function CMOActivityModal({
       ? (activityTypeCustom.trim() || 'Custom Activity')
       : activityType;
 
+    const finalProvince = province === 'Custom' ? customProvince.trim() || 'Province' : province;
+    const finalMunicipality = municipality === 'Custom' ? customMunicipality.trim() || 'Municipality' : municipality;
+    const finalBarangay = barangay === 'Custom' ? customBarangay.trim() || 'Barangay' : barangay;
+
     const provInfo = PH_PROVINCES[province];
     const muniInfo = provInfo?.municipalities.find((m) => m.name === municipality);
     const coords = muniInfo?.coords || [6.9536, 124.4756];
@@ -143,11 +223,11 @@ export default function CMOActivityModal({
       id: initialData?.id || generateUUID(),
       activity_title: activityTitle.trim(),
       activity_type: finalType,
-      target_community: targetCommunity.trim() || `${barangay}, ${municipality}`,
-      province,
-      municipality,
-      barangay,
-      address: `${barangay}, ${municipality}, ${province}`,
+      target_community: targetCommunity.trim() || `${finalBarangay}, ${finalMunicipality}`,
+      province: finalProvince,
+      municipality: finalMunicipality,
+      barangay: finalBarangay,
+      address: `${finalBarangay}, ${finalMunicipality}, ${finalProvince}`,
       mgrs: toMGRS(coords[0], coords[1]),
       lat: coords[0],
       lng: coords[1],
@@ -273,26 +353,48 @@ export default function CMOActivityModal({
                 <label className="text-[11px] text-slate-700 block mb-1 font-semibold">Province *</label>
                 <select
                   value={province}
-                  onChange={(e) => setProvince(e.target.value)}
+                  onChange={(e) => handleProvinceChange(e.target.value)}
                   className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-blue-600 shadow-sm"
                 >
                   {provinceNames.map((p) => (
                     <option key={p} value={p}>{p}</option>
                   ))}
+                  <option value="Custom">+ Other (Write-in Province)</option>
                 </select>
+                {province === 'Custom' && (
+                  <input
+                    type="text"
+                    required
+                    value={customProvince}
+                    onChange={(e) => setCustomProvince(e.target.value)}
+                    placeholder="Enter custom province"
+                    className="w-full mt-1.5 bg-white border border-blue-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-blue-600 shadow-sm"
+                  />
+                )}
               </div>
 
               <div>
                 <label className="text-[11px] text-slate-700 block mb-1 font-semibold">Municipality *</label>
                 <select
                   value={municipality}
-                  onChange={(e) => setMunicipality(e.target.value)}
+                  onChange={(e) => handleMunicipalityChange(e.target.value)}
                   className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-blue-600 shadow-sm"
                 >
                   {municipalities.map((m) => (
                     <option key={m.name} value={m.name}>{m.name}</option>
                   ))}
+                  <option value="Custom">+ Other (Write-in Municipality)</option>
                 </select>
+                {municipality === 'Custom' && (
+                  <input
+                    type="text"
+                    required
+                    value={customMunicipality}
+                    onChange={(e) => setCustomMunicipality(e.target.value)}
+                    placeholder="Enter custom municipality"
+                    className="w-full mt-1.5 bg-white border border-blue-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-blue-600 shadow-sm"
+                  />
+                )}
               </div>
 
               <div>
@@ -305,7 +407,18 @@ export default function CMOActivityModal({
                   {barangays.map((b) => (
                     <option key={b} value={b}>{b}</option>
                   ))}
+                  <option value="Custom">+ Other (Write-in Barangay)</option>
                 </select>
+                {barangay === 'Custom' && (
+                  <input
+                    type="text"
+                    required
+                    value={customBarangay}
+                    onChange={(e) => setCustomBarangay(e.target.value)}
+                    placeholder="Enter custom barangay"
+                    className="w-full mt-1.5 bg-white border border-blue-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-blue-600 shadow-sm"
+                  />
+                )}
               </div>
             </div>
 
