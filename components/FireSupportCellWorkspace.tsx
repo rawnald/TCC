@@ -978,138 +978,6 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
       {/* ────────────────────────────────────────────────────────────────────── */}
       {/* ── HEADER BANNER ───────────────────────────────────────────────────── */}
       {/* ────────────────────────────────────────────────────────────────────── */}
-      
-
-      {/* ────────────────────────────────────────────────────────────────────── */}
-      {/* ── TACTICAL GEOSPATIAL MAP RADAR (DISPLAY THE TACTICAL MAP) ────────── */}
-      {/* ────────────────────────────────────────────────────────────────────── */}
-      <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-        {/* Map Header Bar */}
-        <div className="p-3.5 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center space-x-2.5">
-            <div className="p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-600 shadow-sm">
-              <Crosshair className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wide">
-                  Joint Fires Tactical Geospatial Display
-                </h2>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                  {tacticalMapRecords.length} Elements Plotted
-                </span>
-              </div>
-             
-            </div>
-          </div>
-
-          {/* Map Controls */}
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {/* Layer toggles */}
-            <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 text-xs shadow-sm">
-              <button
-                onClick={() => setShowTargetsOnMap(!showTargetsOnMap)}
-                className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all ${
-                  showTargetsOnMap
-                    ? 'bg-rose-50 text-rose-700 font-bold'
-                    : 'text-slate-400 hover:text-slate-600 line-through'
-                }`}
-                title="Toggle Target Pins"
-              >
-                Targets ({targets.length})
-              </button>
-              <button
-                onClick={() => setShowBatteriesOnMap(!showBatteriesOnMap)}
-                className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all ${
-                  showBatteriesOnMap
-                    ? 'bg-blue-50 text-blue-700 font-bold'
-                    : 'text-slate-400 hover:text-slate-600 line-through'
-                }`}
-                title="Toggle Battery Emplacements"
-              >
-                Batteries ({deployments.length})
-              </button>
-              <button
-                onClick={() => setShowTrajectoryArcs(!showTrajectoryArcs)}
-                className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all ${
-                  showTrajectoryArcs
-                    ? 'bg-amber-50 text-amber-700 font-bold'
-                    : 'text-slate-400 hover:text-slate-600 line-through'
-                }`}
-                title="Toggle Ballistic Trajectory Arcs"
-              >
-                Arcs ({tacticalLinks.length})
-              </button>
-            </div>
-
-            {/* Reset AOR button */}
-            <button
-              onClick={() => {
-                setMapCenter([7.05, 124.38]);
-                setMapZoom(10);
-                setFocusedId(null);
-              }}
-              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold shadow-sm transition-colors"
-              title="Reset Map to Central JTFC AOR"
-            >
-              <Navigation className="w-3.5 h-3.5 text-rose-600" />
-              <span>Reset AOR</span>
-            </button>
-
-            {/* Height Toggle (380px vs 650px) */}
-            <button
-              onClick={() => setIsMapExpanded(!isMapExpanded)}
-              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold shadow-sm transition-colors"
-              title={isMapExpanded ? 'Collapse Map Height to 380px' : 'Expand Map Height to 650px'}
-            >
-              {isMapExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-              <span>{isMapExpanded ? '650px' : '380px'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Map Display Container */}
-        <div className="relative isolate z-0">
-          <TacticalMap
-            records={tacticalMapRecords}
-            onSelectRecord={(rec) => {
-              setFocusedId(rec.id);
-              if (onSelectRecord) onSelectRecord(rec);
-            }}
-            center={mapCenter}
-            zoom={mapZoom}
-            focusedRecordId={focusedId}
-            className={`${isMapExpanded ? 'h-[650px]' : 'h-[380px]'} w-full`}
-            isLive={true}
-            onRefresh={loadAllFiresData}
-            customLinks={tacticalLinks}
-          />
-
-          {/* Tactical Legend Overlay */}
-          <div className="absolute bottom-3 left-3 z-[1000] bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg px-3 py-1.5 shadow-md flex items-center space-x-3 text-[11px] text-slate-700 font-medium max-w-[90%] overflow-x-auto">
-            <div className="flex items-center space-x-1.5 shrink-0">
-              <span className="w-2.5 h-2.5 rounded-full bg-rose-600 shadow-sm" />
-              <span className="font-semibold text-rose-700">Target Deck ({targets.length})</span>
-            </div>
-            <div className="h-3 w-px bg-slate-200 shrink-0" />
-            <div className="flex items-center space-x-1.5 shrink-0">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-sm" />
-              <span className="font-semibold text-blue-700">Artillery / Mortars ({deployments.length})</span>
-            </div>
-            <div className="h-3 w-px bg-slate-200 shrink-0" />
-            <div className="flex items-center space-x-1.5 shrink-0">
-              <span className="w-3 h-0.5 bg-red-600 inline-block border-b border-dashed border-red-500" />
-              <span className="font-semibold text-amber-700">Trajectory Arc</span>
-            </div>
-            <div className="h-3 w-px bg-slate-200 shrink-0" />
-            <div className="flex items-center space-x-1 shrink-0 text-slate-500">
-              <span>Ready Tubes:</span>
-              <span className="font-bold text-slate-800">{firesKpi.totalTubes}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* ────────────────────────────────────────────────────────────────────── */}
       {/* ── HORIZONTAL TABBINGS (3 TABS) ────────────────────────────────────── */}
       {/* ────────────────────────────────────────────────────────────────────── */}
@@ -1174,6 +1042,57 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
           </span>
         </button>
       </div>
+
+      {/* ────────────────────────────────────────────────────────────────────── */}
+      {/* ── TACTICAL GEOSPATIAL MAP RADAR (DISPLAY THE TACTICAL MAP) ────────── */}
+      {/* ────────────────────────────────────────────────────────────────────── */}
+      
+      
+      <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+       
+        {/* Map Display Container */}
+        <div className="relative isolate z-0">
+          <TacticalMap
+            records={tacticalMapRecords}
+            onSelectRecord={(rec) => {
+              setFocusedId(rec.id);
+              if (onSelectRecord) onSelectRecord(rec);
+            }}
+            center={mapCenter}
+            zoom={mapZoom}
+            focusedRecordId={focusedId}
+            className={`${isMapExpanded ? 'h-[650px]' : 'h-[380px]'} w-full`}
+            isLive={true}
+            onRefresh={loadAllFiresData}
+            customLinks={tacticalLinks}
+          />
+
+          {/* Tactical Legend Overlay */}
+          <div className="absolute bottom-3 left-3 z-[1000] bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg px-3 py-1.5 shadow-md flex items-center space-x-3 text-[11px] text-slate-700 font-medium max-w-[90%] overflow-x-auto">
+            <div className="flex items-center space-x-1.5 shrink-0">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-600 shadow-sm" />
+              <span className="font-semibold text-rose-700">Target Deck ({targets.length})</span>
+            </div>
+            <div className="h-3 w-px bg-slate-200 shrink-0" />
+            <div className="flex items-center space-x-1.5 shrink-0">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-sm" />
+              <span className="font-semibold text-blue-700">Artillery / Mortars ({deployments.length})</span>
+            </div>
+            <div className="h-3 w-px bg-slate-200 shrink-0" />
+            <div className="flex items-center space-x-1.5 shrink-0">
+              <span className="w-3 h-0.5 bg-red-600 inline-block border-b border-dashed border-red-500" />
+              <span className="font-semibold text-amber-700">Trajectory Arc</span>
+            </div>
+            <div className="h-3 w-px bg-slate-200 shrink-0" />
+            <div className="flex items-center space-x-1 shrink-0 text-slate-500">
+              <span>Ready Tubes:</span>
+              <span className="font-bold text-slate-800">{firesKpi.totalTubes}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      
 
       {/* ────────────────────────────────────────────────────────────────────── */}
       {/* ── TAB CONTENT 1: FIRE SUPPORT STATUS ──────────────────────────────── */}
