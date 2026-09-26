@@ -55,6 +55,13 @@
     cursor: grab;
   }
 
+  /* Position Leaflet zoom buttons cleanly below the top-left HUD */
+  .leaflet-top.leaflet-left {
+    top: 54px !important;
+    left: 12px !important;
+    z-index: 900 !important;
+  }
+
   .leaflet-container:active,
   .leaflet-dragging .leaflet-container,
   .leaflet-drag-target {

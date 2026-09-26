@@ -36,27 +36,27 @@ function getCategoryColor(record: RecordItem): string {
   return CATEGORY_COLORS[record.category] || '#64748b';
 }
 
-export type GoogleMapLayerType = 'terrain' | 'satellite' | 'roadmap';
+export type GoogleMapLayerType = 'satellite' | 'terrain' | 'roadmap';
 
 const GOOGLE_TILE_CONFIGS: Record<
   GoogleMapLayerType,
   { url: string; subdomains: string[]; maxZoom: number; label: string; icon: any; attribution: string }
 > = {
-  terrain: {
-    url: 'https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
-    subdomains: ['0', '1', '2', '3'],
-    maxZoom: 20,
-    label: 'Google Terrain',
-    icon: Mountain,
-    attribution: '&copy; Google Maps (Terrain Relief)',
-  },
   satellite: {
     url: 'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
     subdomains: ['0', '1', '2', '3'],
     maxZoom: 20,
-    label: 'Satellite Hybrid',
+    label: 'Satellite Map',
     icon: Globe,
     attribution: '&copy; Google Maps (Satellite)',
+  },
+  terrain: {
+    url: 'https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+    subdomains: ['0', '1', '2', '3'],
+    maxZoom: 20,
+    label: 'Terrain Hybrid',
+    icon: Mountain,
+    attribution: '&copy; Google Maps (Terrain Relief)',
   },
   roadmap: {
     url: 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
@@ -959,28 +959,31 @@ export default function TacticalMap({
   const resolvedCount = records.filter((r) => resolveCoordinates(r) !== null).length;
 
   return (
-    <div className={`relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50 shadow-tactical-card select-none isolate z-0 ${className}`}>
+    <div className={`relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50 shadow-tactical-card select-none isolate ${className}`}>
+      {/* Map DOM container FIRST as base layer */}
+      <div ref={mapContainerRef} className="h-full w-full absolute inset-0 z-0" />
+
       {/* HUD — top left: Map Info */}
-      <div className="absolute top-3 left-3 z-[400] flex items-center space-x-2 bg-slate-50/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-sans shadow-lg pointer-events-none">
-        <Mountain className="w-3.5 h-3.5 text-emerald-400" />
-        <span className="text-slate-100 font-bold uppercase tracking-wider">
+      <div className="absolute top-3 left-3 z-[1050] flex items-center space-x-2 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-sans shadow-md pointer-events-none">
+        <Mountain className="w-3.5 h-3.5 text-blue-600" />
+        <span className="text-slate-900 font-black uppercase tracking-wider">
           {GOOGLE_TILE_CONFIGS[activeLayer].label}
         </span>
-        <span className="text-slate-600">|</span>
-        <span className="text-emerald-400 font-bold">{resolvedCount} MAPPED</span>
+        <span className="text-slate-300">|</span>
+        <span className="text-emerald-600 font-bold">{resolvedCount} MAPPED</span>
         {records.length > resolvedCount && (
           <>
-            <span className="text-slate-600">|</span>
-            <span className="text-amber-400 font-semibold">{records.length - resolvedCount} UNMAPPED</span>
+            <span className="text-slate-300">|</span>
+            <span className="text-amber-600 font-semibold">{records.length - resolvedCount} UNMAPPED</span>
           </>
         )}
       </div>
 
       {/* HUD — top right: Map Layer Switcher + Live Status */}
-      <div className="absolute top-3 right-3 z-[400] flex items-center space-x-2">
-        {/* Layer Switcher (Terrain, Satellite, Roadmap) */}
-        <div className="flex items-center p-1 rounded-lg bg-slate-50/95 backdrop-blur-md border border-slate-200 shadow-xl font-sans text-[11px]">
-          {(['terrain', 'satellite', 'roadmap'] as GoogleMapLayerType[]).map((layerKey) => {
+      <div className="absolute top-3 right-3 z-[1050] flex flex-wrap items-center gap-2 pointer-events-auto">
+        {/* Layer Switcher (Satellite Map, Terrain Hybrid, Roadmap) */}
+        <div className="flex items-center p-1 rounded-xl bg-white/95 backdrop-blur-md border border-slate-300 shadow-xl font-sans text-xs">
+          {(['satellite', 'terrain', 'roadmap'] as GoogleMapLayerType[]).map((layerKey) => {
             const cfg = GOOGLE_TILE_CONFIGS[layerKey];
             const Icon = cfg.icon;
             const isActive = activeLayer === layerKey;
@@ -989,15 +992,15 @@ export default function TacticalMap({
                 key={layerKey}
                 type="button"
                 onClick={() => setActiveLayer(layerKey)}
-                className={`flex items-center space-x-1 px-2.5 py-1 rounded-md font-bold transition-all ${
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-950'
                 }`}
                 title={`Switch to ${cfg.label}`}
               >
-                <Icon className="w-3 h-3" />
-                <span className="hidden sm:inline">{cfg.label.replace('Google ', '')}</span>
+                <Icon className="w-3.5 h-3.5" />
+                <span className="whitespace-nowrap font-semibold">{cfg.label}</span>
               </button>
             );
           })}
@@ -1005,26 +1008,26 @@ export default function TacticalMap({
 
         {/* Live Auto-Sync indicator */}
         {isLive && (
-          <div className="flex items-center space-x-1.5 bg-slate-50/90 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-emerald-700/60 text-xs font-sans shadow-lg">
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-radar-dot shadow-glow-emerald" />
-            <Wifi className="w-3 h-3 text-emerald-400" />
-            <span className="text-emerald-400 font-bold hidden sm:inline">LIVE AUTO-SYNC</span>
+          <div className="flex items-center space-x-1.5 bg-white/95 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-slate-300 text-xs font-sans shadow-md">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-sm" />
+            <Wifi className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="text-emerald-700 font-bold hidden md:inline text-[11px]">LIVE SYNC</span>
             <button
               type="button"
               onClick={handleManualRefresh}
               disabled={isRefreshing}
-              className="ml-1 p-0.5 text-slate-400 hover:text-emerald-300 transition-colors disabled:opacity-50"
+              className="ml-1 p-0.5 text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-50 cursor-pointer"
               title="Automatic live sync active. Click to refresh now."
             >
-              <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin text-cyan-400' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-blue-600' : ''}`} />
             </button>
           </div>
         )}
       </div>
 
       {/* ── Responsive Directional Navigation Controls (D-Pad) ── */}
-      <div className="absolute bottom-4 right-4 z-[400] bg-slate-50/90 backdrop-blur-md p-2 rounded-xl border border-slate-200 shadow-2xl flex flex-col items-center space-y-1 font-sans">
-        <div className="text-[8px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+      <div className="absolute bottom-4 right-4 z-[1050] bg-white/95 backdrop-blur-md p-2 rounded-xl border border-slate-300 shadow-xl flex flex-col items-center space-y-1 font-sans pointer-events-auto">
+        <div className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
           Pan &amp; Hold
         </div>
 
@@ -1036,7 +1039,7 @@ export default function TacticalMap({
           onMouseLeave={stopPan}
           onTouchStart={() => startPan(0, -90)}
           onTouchEnd={stopPan}
-          className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-cyan-950 border border-slate-200 hover:border-cyan-500 text-slate-200 hover:text-cyan-300 flex items-center justify-center transition-all active:scale-90"
+          className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 hover:text-slate-950 flex items-center justify-center transition-all active:scale-90"
           title="Pan North (Hold to scroll)"
         >
           <ChevronUp className="w-4 h-4" />
@@ -1052,7 +1055,7 @@ export default function TacticalMap({
             onMouseLeave={stopPan}
             onTouchStart={() => startPan(-90, 0)}
             onTouchEnd={stopPan}
-            className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-cyan-950 border border-slate-200 hover:border-cyan-500 text-slate-200 hover:text-cyan-300 flex items-center justify-center transition-all active:scale-90"
+            className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 hover:text-slate-950 flex items-center justify-center transition-all active:scale-90"
             title="Pan West (Hold to scroll)"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -1062,7 +1065,7 @@ export default function TacticalMap({
           <button
             type="button"
             onClick={resetToCenter}
-            className="w-7 h-7 rounded-lg bg-cyan-950 hover:bg-cyan-900 border border-cyan-700 text-cyan-300 flex items-center justify-center transition-all active:scale-90"
+            className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-700 border border-blue-700 text-white flex items-center justify-center transition-all active:scale-90 shadow-sm"
             title="Re-center / Fit theater bounds"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -1076,7 +1079,7 @@ export default function TacticalMap({
             onMouseLeave={stopPan}
             onTouchStart={() => startPan(90, 0)}
             onTouchEnd={stopPan}
-            className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-cyan-950 border border-slate-200 hover:border-cyan-500 text-slate-200 hover:text-cyan-300 flex items-center justify-center transition-all active:scale-90"
+            className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 hover:text-slate-950 flex items-center justify-center transition-all active:scale-90"
             title="Pan East (Hold to scroll)"
           >
             <ChevronRight className="w-4 h-4" />
@@ -1091,7 +1094,7 @@ export default function TacticalMap({
           onMouseLeave={stopPan}
           onTouchStart={() => startPan(0, 90)}
           onTouchEnd={stopPan}
-          className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-cyan-950 border border-slate-200 hover:border-cyan-500 text-slate-200 hover:text-cyan-300 flex items-center justify-center transition-all active:scale-90"
+          className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 hover:text-slate-950 flex items-center justify-center transition-all active:scale-90"
           title="Pan South (Hold to scroll)"
         >
           <ChevronDown className="w-4 h-4" />
@@ -1100,20 +1103,17 @@ export default function TacticalMap({
 
       {/* Pick mode banner */}
       {pickMode && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[400] flex items-center space-x-2 bg-rose-950/90 border border-rose-600/80 text-rose-300 px-3 py-1.5 rounded-lg text-xs font-sans animate-pulse shadow-lg font-bold">
-          <Crosshair className="w-4 h-4 text-rose-400" />
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[1050] flex items-center space-x-2 bg-rose-600 text-white px-3 py-1.5 rounded-xl text-xs font-sans animate-pulse shadow-lg font-bold pointer-events-auto">
+          <Crosshair className="w-4 h-4 text-white" />
           <span>CLICK MAP TO PIN COORD</span>
         </div>
       )}
 
       {/* Drag & Hold Tip */}
-      <div className="absolute bottom-3 left-3 z-[400] hidden sm:flex items-center space-x-1.5 bg-slate-50/85 backdrop-blur-sm px-2.5 py-1 rounded-md border border-slate-200 text-[10px] text-slate-400 font-sans pointer-events-none">
-        <Hand className="w-3 h-3 text-cyan-400" />
+      <div className="absolute bottom-3 left-3 z-[1050] hidden md:flex items-center space-x-1.5 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-slate-300 text-[10px] text-slate-600 font-sans pointer-events-none shadow-sm">
+        <Hand className="w-3 h-3 text-blue-600" />
         <span>Click &amp; hold to drag map in all directions</span>
       </div>
-
-      {/* Map DOM container */}
-      <div ref={mapContainerRef} className="h-full w-full" />
     </div>
   );
 }
