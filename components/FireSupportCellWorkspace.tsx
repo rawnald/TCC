@@ -999,9 +999,7 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
                   {tacticalMapRecords.length} Elements Plotted
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500">
-                Batteries, target locations, impact footprints &amp; ballistic trajectory lines in Central Mindanao AOR.
-              </p>
+             
             </div>
           </div>
 
