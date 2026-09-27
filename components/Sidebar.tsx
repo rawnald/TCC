@@ -189,29 +189,10 @@ export default function Sidebar({
         {/* Staff Modules Dropdown */}
       
         {/* Governance & Additional Operations */}
-        <div>
-          <div className="text-[11px] font-sans uppercase tracking-wider text-slate-400 px-3 mb-2 font-bold flex items-center justify-between">
-            <span>Governance & Tracking</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-          </div>
+        
+        
           <div className="space-y-1">
-            <button
-              onClick={() => onSelectView('audit')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-sans transition-all ${
-                currentView === 'audit'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200 font-bold shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <div className="flex items-center space-x-2.5">
-                <History className={`w-4 h-4 ${currentView === 'audit' ? 'text-blue-600' : 'text-slate-400'}`} />
-                <span>Audit & Activity Logs</span>
-              </div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 font-sans">
-                {counts.audit || 0}
-              </span>
-            </button>
-
+        
             <button
               onClick={() => onSelectView('calendar')}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-sans transition-all ${
@@ -263,22 +244,8 @@ export default function Sidebar({
               </span>
             </button>
 
-            <button
-              onClick={onOpenSnapshot}
-              disabled={isSnapshotting}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-sans transition-all text-slate-600 hover:text-blue-600 hover:bg-slate-50 group active:scale-95"
-              title="GitHub JSON Snapshot Pipeline"
-            >
-              <div className="flex items-center space-x-2.5">
-                <GitBranch className={`w-4 h-4 text-slate-400 group-hover:text-blue-600 ${isSnapshotting ? 'animate-spin text-blue-600' : ''}`} />
-                <span>GH Snapshot</span>
-              </div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-sans font-bold">
-                {isSnapshotting ? 'SYNC' : 'READY'}
-              </span>
-            </button>
           </div>
-        </div>
+        
       </div>
 
       {/* Bottom Status Box */}
