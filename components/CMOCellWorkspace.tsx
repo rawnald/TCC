@@ -8,6 +8,7 @@ import {
   RidoStatus,
   PIAGLocationRecord,
   CMOActivityRecord,
+  extractInteger,
 } from '@/types/cmo';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 import RidoModal from './RidoModal';
@@ -388,7 +389,7 @@ export default function CMOCellWorkspace({
       console.warn('Rido data fetch exception:', err);
     }
 
-    // 2. Fetch PIAGs locations from Supabase
+    // 2. Fetch PIAGs locations from Supabase cmo_piags table
     try {
       let combinedPiags: PIAGLocationRecord[] = [];
       const { data: piagData, error: piagErr } = await supabase
@@ -396,55 +397,47 @@ export default function CMOCellWorkspace({
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (piagData && !piagErr) {
-        combinedPiags = piagData as PIAGLocationRecord[];
-      }
-
-      // Also check fallback mirror in records table
-      const { data: recData } = await supabase
-        .from('records')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (recData && recData.length > 0) {
-        const piagMirrors: PIAGLocationRecord[] = recData
-          .filter(
-            (r: any) =>
-              r.metadata?.cmo_type === 'piag' ||
-              r.metadata?.is_piag === true ||
-              (r.code && String(r.code).startsWith('PIAG-'))
-          )
-          .map((r: any) => ({
-            id: r.id,
-            group_name: r.metadata?.group_name || r.title?.replace('[PIAG]', '').trim() || 'PIAG Element',
-            commander_leader: r.metadata?.commander_leader || 'Unknown',
-            affiliated_politician_faction: r.metadata?.affiliated_politician_faction,
-            estimated_strength: r.metadata?.estimated_strength || '10-15',
-            firearms_inventory: r.metadata?.total_est_firearms || r.metadata?.firearms_inventory,
-            total_est_firearms: r.metadata?.total_est_firearms || r.metadata?.firearms_inventory,
-            province: r.metadata?.province || 'Maguindanao del Sur',
-            municipality: r.metadata?.municipality || '',
-            barangay: r.metadata?.barangay || '',
-            purok_sitio: r.metadata?.purok_sitio,
-            address: r.location_name || r.metadata?.address || '',
-            mgrs: r.metadata?.mgrs || '',
-            lat: Number(r.lat) || 6.95,
-            lng: Number(r.lng) || 124.47,
-            status: r.metadata?.status || (r.status === 'closed' ? 'Disbanded' : 'Active'),
-            threat_level: r.priority || 'high',
-            notes: r.metadata?.notes || r.metadata?.remarks || r.description,
-            remarks: r.metadata?.remarks || r.metadata?.notes || r.description,
-            created_at: r.created_at,
-            updated_at: r.updated_at,
-          }));
-
-        const existingIds = new Set(combinedPiags.map((p) => p.id));
-        for (const mirror of piagMirrors) {
-          if (!existingIds.has(mirror.id)) {
-            combinedPiags.push(mirror);
-            existingIds.add(mirror.id);
-          }
-        }
+      if (piagData && !piagErr && piagData.length > 0) {
+        combinedPiags = (piagData as any[]).map((r) => ({
+          id: r.id,
+          group_name: r.group_name || 'PIAG Element',
+          commander_leader: r.commander_leader || r.commander || 'Unknown',
+          affiliated_politician_faction: r.affiliated_politician_faction || r.affiliation || undefined,
+          estimated_strength:
+            r.metadata?.raw_strength_text ||
+            (r.estimated_strength != null
+              ? `${r.estimated_strength} armed combatants`
+              : r.strength != null
+              ? `${r.strength} armed combatants`
+              : '10-15'),
+          firearms_inventory:
+            r.metadata?.raw_firearms_text ||
+            r.firearms_inventory ||
+            (r.total_est_firearms != null
+              ? `${r.total_est_firearms} firearms`
+              : r.firearms_count != null
+              ? `${r.firearms_count} firearms`
+              : undefined),
+          total_est_firearms:
+            r.metadata?.raw_firearms_text ||
+            r.firearms_inventory ||
+            (r.total_est_firearms != null ? `${r.total_est_firearms} firearms` : undefined),
+          province: r.province || 'Maguindanao del Sur',
+          municipality: r.municipality || '',
+          barangay: r.barangay || '',
+          purok_sitio: r.purok_sitio || undefined,
+          address: r.address || r.location_name || '',
+          mgrs: r.mgrs || '',
+          lat: Number(r.lat) || 6.95,
+          lng: Number(r.lng) || 124.47,
+          status: r.status || 'Active',
+          threat_level: r.threat_level || 'high',
+          notes: r.notes || r.remarks || undefined,
+          remarks: r.remarks || r.notes || undefined,
+          metadata: r.metadata,
+          created_at: r.created_at || new Date().toISOString(),
+          updated_at: r.updated_at,
+        }));
       }
 
       if (combinedPiags.length > 0) {
@@ -660,50 +653,55 @@ export default function CMOCellWorkspace({
     } catch {}
 
     if (isSupabaseConfigured() && supabase) {
+      const numStrength = extractInteger(record.estimated_strength);
+      const numFirearms = extractInteger(record.total_est_firearms || record.firearms_inventory);
+
+      const piagDbPayload = {
+        id: record.id,
+        group_name: record.group_name,
+        commander_leader: record.commander_leader,
+        commander: record.commander_leader,
+        affiliated_politician_faction: record.affiliated_politician_faction || null,
+        affiliation: record.affiliated_politician_faction || null,
+        estimated_strength: numStrength,
+        strength: numStrength,
+        total_est_firearms: numFirearms,
+        firearms_count: numFirearms,
+        firearms_inventory: record.firearms_inventory || record.total_est_firearms || null,
+        province: record.province,
+        municipality: record.municipality,
+        barangay: record.barangay,
+        purok_sitio: record.purok_sitio || null,
+        address: record.address || null,
+        location_name: record.address || null,
+        mgrs: record.mgrs,
+        lat: record.lat,
+        lng: record.lng,
+        status: record.status,
+        threat_level: record.threat_level || 'high',
+        notes: record.notes || record.remarks || null,
+        remarks: record.remarks || record.notes || null,
+        metadata: {
+          raw_strength_text: record.estimated_strength,
+          raw_firearms_text: record.firearms_inventory || record.total_est_firearms,
+        },
+        updated_at: new Date().toISOString(),
+      };
+
       try {
-        await supabase.from('cmo_piags').upsert([record]);
+        const { error: piagErr } = await supabase.from('cmo_piags').upsert([piagDbPayload]);
+        if (piagErr) {
+          console.error('cmo_piags table save notice:', piagErr);
+        }
       } catch (piagErr) {
         console.warn('cmo_piags table save notice:', piagErr);
       }
 
+      // Ensure any historical mirror in records table is removed so it does NOT linger with category 'units'
       try {
-        const mirror: Partial<RecordItem> = {
-          id: record.id,
-          code: `PIAG-${(record.group_name || 'ELEM').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase()}`,
-          title: `[PIAG] ${record.group_name}`,
-          category: 'units',
-          description: record.notes || record.remarks || `Leader: ${record.commander_leader} | Strength: ${record.estimated_strength} | Firearms: ${record.total_est_firearms || record.firearms_inventory || 'N/A'} | Status: ${record.status}`,
-          status: record.status === 'Disbanded' ? 'closed' : 'active',
-          priority: record.threat_level || 'high',
-          lat: record.lat,
-          lng: record.lng,
-          location_name: record.address || `${record.barangay}, ${record.municipality}`,
-          metadata: {
-            cmo_type: 'piag',
-            is_piag: true,
-            group_name: record.group_name,
-            commander_leader: record.commander_leader,
-            affiliated_politician_faction: record.affiliated_politician_faction,
-            estimated_strength: record.estimated_strength,
-            firearms_inventory: record.total_est_firearms || record.firearms_inventory,
-            total_est_firearms: record.total_est_firearms || record.firearms_inventory,
-            mgrs: record.mgrs,
-            province: record.province,
-            municipality: record.municipality,
-            barangay: record.barangay,
-            purok_sitio: record.purok_sitio,
-            address: record.address,
-            status: record.status,
-            threat_level: record.threat_level,
-            notes: record.notes || record.remarks,
-            remarks: record.remarks || record.notes,
-          },
-          updated_at: new Date().toISOString(),
-        };
-        await supabase.from('records').upsert([mirror]);
-        if (onRefreshData) onRefreshData();
+        await supabase.from('records').delete().eq('id', record.id);
       } catch (recErr) {
-        console.warn('Supabase records mirror notice:', recErr);
+        console.warn('Historical records cleanup notice:', recErr);
       }
     }
   };

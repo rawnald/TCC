@@ -74,6 +74,7 @@ export interface PIAGLocationRecord {
   threat_level?: 'critical' | 'high' | 'medium' | 'low';
   notes?: string;
   remarks?: string;
+  metadata?: Record<string, any>;
   created_at: string;
   updated_at?: string;
 }
@@ -99,4 +100,11 @@ export interface CMOActivityRecord {
   created_at: string;
   updated_at?: string;
 }
+
+export const extractInteger = (val: any): number => {
+  if (typeof val === 'number') return isNaN(val) ? 0 : Math.round(val);
+  if (!val) return 0;
+  const match = String(val).match(/\d+/);
+  return match ? parseInt(match[0], 10) : 0;
+};
 

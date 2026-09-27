@@ -17,8 +17,7 @@ import {
   FileText,
   HelpCircle,
 } from 'lucide-react';
-import { PIAGLocationRecord } from '@/types/cmo';
-import { RecordItem } from '@/types';
+import { PIAGLocationRecord, extractInteger } from '@/types/cmo';
 import { toMGRS, parseMGRSToCoords, cleanMGRS } from '@/lib/mgrsUtils';
 import { PH_PROVINCES } from '@/lib/phLocationData';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
@@ -316,14 +315,19 @@ export default function PIAGModal({
     const fullAddr = [purokSitio.trim(), finalBarangay, finalMunicipality, finalProvince].filter(Boolean).join(', ');
 
     const recordId = initialData?.id || generateUUID();
+    const cleanStrength = estimatedStrength.trim() || 'Unspecified';
+    const cleanFirearms = firearmsInventory.trim() || undefined;
+    const numStrength = extractInteger(cleanStrength);
+    const numFirearms = extractInteger(cleanFirearms);
+
     const record: PIAGLocationRecord = {
       id: recordId,
       group_name: finalGroupName,
       commander_leader: commanderLeader.trim(),
       affiliated_politician_faction: affiliatedPolitician.trim() || undefined,
-      estimated_strength: estimatedStrength.trim() || 'Unspecified',
-      firearms_inventory: firearmsInventory.trim() || undefined,
-      total_est_firearms: firearmsInventory.trim() || undefined,
+      estimated_strength: cleanStrength,
+      firearms_inventory: cleanFirearms,
+      total_est_firearms: cleanFirearms,
       province: finalProvince,
       municipality: finalMunicipality,
       barangay: finalBarangay,
@@ -336,65 +340,63 @@ export default function PIAGModal({
       threat_level: threatLevel,
       notes: notes.trim() || undefined,
       remarks: notes.trim() || undefined,
+      metadata: {
+        raw_strength_text: cleanStrength,
+        raw_firearms_text: cleanFirearms,
+      },
       created_at: initialData?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
     setIsSaving(true);
-    setSupabaseStatus('Saving to Supabase table...');
+    setSupabaseStatus('Saving to Supabase cmo_piags table...');
 
     try {
-      // 1. Automatic direct save to Supabase
+      // 1. Direct save to Supabase cmo_piags table
       if (isSupabaseConfigured() && supabase) {
-        // A. Attempt upsert to dedicated cmo_piags table if present
-        try {
-          await supabase.from('cmo_piags').upsert([record]);
-        } catch (dbErr) {
-          console.warn('cmo_piags table upsert notice:', dbErr);
+        const piagDbPayload = {
+          id: record.id,
+          group_name: record.group_name,
+          commander_leader: record.commander_leader,
+          commander: record.commander_leader,
+          affiliated_politician_faction: record.affiliated_politician_faction || null,
+          affiliation: record.affiliated_politician_faction || null,
+          estimated_strength: numStrength,
+          strength: numStrength,
+          total_est_firearms: numFirearms,
+          firearms_count: numFirearms,
+          firearms_inventory: cleanFirearms || null,
+          province: record.province,
+          municipality: record.municipality,
+          barangay: record.barangay,
+          purok_sitio: record.purok_sitio || null,
+          address: record.address || null,
+          location_name: record.address || null,
+          mgrs: record.mgrs,
+          lat: record.lat,
+          lng: record.lng,
+          status: record.status,
+          threat_level: record.threat_level || 'high',
+          notes: record.notes || null,
+          remarks: record.remarks || null,
+          metadata: {
+            raw_strength_text: cleanStrength,
+            raw_firearms_text: cleanFirearms,
+          },
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error: sbErr } = await supabase.from('cmo_piags').upsert([piagDbPayload]);
+        if (sbErr) {
+          console.error('Direct cmo_piags upsert error:', sbErr);
+          throw new Error(`cmo_piags table save failed: ${sbErr.message}`);
         }
 
-        // B. Upsert into records table with unit category & cmo_type: 'piag' metadata
+        // Clean up any historical mirror in records table so it does NOT linger with category 'units'
         try {
-          const mirror: Partial<RecordItem> = {
-            id: record.id,
-            code: `PIAG-${finalGroupName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase() || 'ELEM'}`,
-            title: `[PIAG] ${finalGroupName}`,
-            category: 'units',
-            description: notes.trim() || `Leader: ${commanderLeader.trim()} | Strength: ${estimatedStrength.trim()} | Firearms: ${firearmsInventory.trim()} | Status: ${status}`,
-            status: status === 'Disbanded' ? 'closed' : 'active',
-            priority: threatLevel || 'high',
-            lat: finalLat,
-            lng: finalLng,
-            location_name: fullAddr,
-            metadata: {
-              cmo_type: 'piag',
-              is_piag: true,
-              group_name: finalGroupName,
-              commander_leader: commanderLeader.trim(),
-              affiliated_politician_faction: affiliatedPolitician.trim() || null,
-              estimated_strength: estimatedStrength.trim(),
-              firearms_inventory: firearmsInventory.trim(),
-              total_est_firearms: firearmsInventory.trim(),
-              mgrs: record.mgrs,
-              province,
-              municipality,
-              barangay: finalBarangay,
-              purok_sitio: purokSitio.trim() || null,
-              address: fullAddr,
-              status,
-              threat_level: threatLevel,
-              notes: notes.trim(),
-              remarks: notes.trim(),
-            },
-            updated_at: new Date().toISOString(),
-          };
-
-          const { error: recError } = await supabase.from('records').upsert([mirror]);
-          if (recError) {
-            console.warn('Supabase records mirror notification:', recError.message);
-          }
-        } catch (mirrorErr) {
-          console.warn('Supabase records mirror exception:', mirrorErr);
+          await supabase.from('records').delete().eq('id', record.id);
+        } catch (cleanupErr) {
+          console.warn('Historical records cleanup notice:', cleanupErr);
         }
       }
 
