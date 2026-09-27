@@ -4,22 +4,18 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { RecordItem, AuditLog, RecordCategory } from '@/types';
 import TacticalMap from './TacticalMap';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
-import { parseMGRSToCoords, toMGRS, toZuluDTG, formatMGRSDisplay, resolveCoordinates } from '@/lib/mgrsUtils';
+import { parseMGRSToCoords, toZuluDTG, formatMGRSDisplay, resolveCoordinates } from '@/lib/mgrsUtils';
 import {
   Shield,
   Crosshair,
-  AlertTriangle,
   Flame,
   CheckSquare,
   Square,
   MapPin,
   Layers,
-  ExternalLink,
   Users,
-  Compass,
   FileText,
   Clock,
-  Navigation,
   RefreshCw,
   Copy,
   Check,
@@ -130,8 +126,6 @@ export default function DashboardOverview({
         lat = parsed[0];
         lng = parsed[1];
       }
-    } else if (lat !== 0 && lng !== 0) {
-      // already numeric
     }
 
     return {
@@ -220,8 +214,6 @@ export default function DashboardOverview({
         lat = parsed[0];
         lng = parsed[1];
       }
-    } else if (lat !== 0 && lng !== 0) {
-      // direct coords
     }
 
     const title = inc.title || `${inc.operation_type || inc.incident_type || 'Incident'} — ${inc.area || inc.location_name || 'AOR'}`;
@@ -478,22 +470,19 @@ export default function DashboardOverview({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 font-sans text-slate-900">
       {/* ─── Grid: Tactical Map (2 Cols) + Latest Feed (1 Col) ─────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
         {/* ─── Left 2 Columns: Upper Horizontal Checklist Tabbings + Tactical Map */}
         <div className="lg:col-span-2 flex flex-col space-y-3">
-          {/* Upper Portion: Horizontal Checklist Tabbings */}
-          <div className="p-2.5 sm:p-3 rounded-xl bg-slate-900/90 border border-slate-800 shadow-tactical-card flex flex-wrap items-center justify-between gap-3">
+          {/* Upper Portion: Horizontal Checklist Tabbings (Light theme matching OperationCell) */}
+          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-2.5 sm:p-3 flex flex-wrap items-center justify-between gap-3">
             {/* Left Header / Badge */}
-            <div className="flex items-center space-x-2.5">
-              <span className="w-2.5 h-2.5 bg-cyan-400 rounded-sm shadow-glow-cyan animate-pulse" />
-              <div className="flex items-center space-x-1.5">
-                <Layers className="w-4 h-4 text-cyan-400" />
-                <span className="text-xs font-sans font-bold text-slate-100 uppercase tracking-wider">
-                  Tactical Map Layers:
-                </span>
-              </div>
+            <div className="flex items-center space-x-2">
+              <Layers className="w-4 h-4 text-blue-600" />
+              <span className="text-xs font-sans font-bold text-slate-900 uppercase tracking-wide">
+                Tactical Map Layers:
+              </span>
             </div>
 
             {/* Center / Right: Horizontal Checklist Tabbings */}
@@ -507,25 +496,25 @@ export default function DashboardOverview({
                     forcesUnits: !prev.forcesUnits,
                   }))
                 }
-                className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border text-xs font-sans font-semibold transition-all duration-200 select-none ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-sans whitespace-nowrap transition-all select-none shrink-0 ${
                   layerChecklist.forcesUnits
-                    ? 'bg-cyan-950/80 border-cyan-500/80 text-cyan-200 shadow-sm ring-1 ring-cyan-500/40'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700 opacity-60'
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200 font-bold shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-slate-200'
                 }`}
                 title="Toggle Forces Units layer on Tactical Map"
               >
                 {layerChecklist.forcesUnits ? (
-                  <CheckSquare className="w-4 h-4 text-cyan-400 shrink-0" />
+                  <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
                 ) : (
-                  <Square className="w-4 h-4 text-slate-500 shrink-0" />
+                  <Square className="w-4 h-4 text-slate-400 shrink-0" />
                 )}
-                <Shield className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <Shield className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                 <span className="tracking-wide">Forces Units</span>
                 <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-bold ${
+                  className={`text-[10px] font-sans px-1.5 py-0.5 rounded border shrink-0 font-bold ${
                     layerChecklist.forcesUnits
-                      ? 'bg-cyan-900/90 text-cyan-300 border border-cyan-700/60'
-                      : 'bg-slate-800 text-slate-400'
+                      ? 'bg-blue-100 text-blue-800 border-blue-200'
+                      : 'bg-slate-100 text-slate-600 border-slate-200'
                   }`}
                 >
                   {effectiveForceUnits.length}
@@ -541,25 +530,25 @@ export default function DashboardOverview({
                     piags: !prev.piags,
                   }))
                 }
-                className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border text-xs font-sans font-semibold transition-all duration-200 select-none ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-sans whitespace-nowrap transition-all select-none shrink-0 ${
                   layerChecklist.piags
-                    ? 'bg-amber-950/80 border-amber-500/80 text-amber-200 shadow-sm ring-1 ring-amber-500/40'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700 opacity-60'
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200 font-bold shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-slate-200'
                 }`}
                 title="Toggle Private Armed Groups (PIAGs) locations layer on Tactical Map"
               >
                 {layerChecklist.piags ? (
-                  <CheckSquare className="w-4 h-4 text-amber-400 shrink-0" />
+                  <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
                 ) : (
-                  <Square className="w-4 h-4 text-slate-500 shrink-0" />
+                  <Square className="w-4 h-4 text-slate-400 shrink-0" />
                 )}
-                <Crosshair className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <Crosshair className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                 <span className="tracking-wide">PIAGs Locations</span>
                 <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-bold ${
+                  className={`text-[10px] font-sans px-1.5 py-0.5 rounded border shrink-0 font-bold ${
                     layerChecklist.piags
-                      ? 'bg-amber-900/90 text-amber-300 border border-amber-700/60'
-                      : 'bg-slate-800 text-slate-400'
+                      ? 'bg-blue-100 text-blue-800 border-blue-200'
+                      : 'bg-slate-100 text-slate-600 border-slate-200'
                   }`}
                 >
                   {effectivePiags.length}
@@ -575,46 +564,46 @@ export default function DashboardOverview({
                     incidents: !prev.incidents,
                   }))
                 }
-                className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border text-xs font-sans font-semibold transition-all duration-200 select-none ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-sans whitespace-nowrap transition-all select-none shrink-0 ${
                   layerChecklist.incidents
-                    ? 'bg-rose-950/80 border-rose-500/80 text-rose-200 shadow-sm ring-1 ring-rose-500/40'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700 opacity-60'
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200 font-bold shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-slate-200'
                 }`}
                 title="Toggle Incidents layer on Tactical Map"
               >
                 {layerChecklist.incidents ? (
-                  <CheckSquare className="w-4 h-4 text-rose-400 shrink-0" />
+                  <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
                 ) : (
-                  <Square className="w-4 h-4 text-slate-500 shrink-0" />
+                  <Square className="w-4 h-4 text-slate-400 shrink-0" />
                 )}
-                <Flame className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                <Flame className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                 <span className="tracking-wide">Incidents</span>
                 <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-bold ${
+                  className={`text-[10px] font-sans px-1.5 py-0.5 rounded border shrink-0 font-bold ${
                     layerChecklist.incidents
-                      ? 'bg-rose-900/90 text-rose-300 border border-rose-700/60'
-                      : 'bg-slate-800 text-slate-400'
+                      ? 'bg-blue-100 text-blue-800 border-blue-200'
+                      : 'bg-slate-100 text-slate-600 border-slate-200'
                   }`}
                 >
                   {effectiveIncidents.length}
                 </span>
               </button>
 
-              {/* Refresh / Layer Status */}
+              {/* Refresh Button (copied from OperationCellWorkspace) */}
               <button
                 type="button"
                 onClick={handleFullRefresh}
                 disabled={isRefreshing}
-                className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-cyan-400 hover:border-cyan-500/40 transition-colors"
+                className="p-1.5 rounded-lg bg-white border border-slate-200 hover:border-blue-400 text-slate-600 hover:text-slate-900 transition-colors shadow-sm"
                 title="Refresh Map Layers from Database"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-cyan-400' : ''}`} />
+                <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
 
           {/* Tactical Map Container */}
-          <div className="relative flex-1 min-h-[580px] rounded-xl overflow-hidden border border-slate-800 shadow-tactical-card">
+          <div className="relative flex-1 min-h-[580px] rounded-xl overflow-hidden bg-white border border-slate-200 shadow-sm">
             <TacticalMap
               records={visibleMapRecords}
               onSelectRecord={onSelectRecord}
@@ -629,35 +618,31 @@ export default function DashboardOverview({
         {/* ─── Right 1 Column: Latest Incident & Latest Rido ─────────────────── */}
         <div className="lg:col-span-1 flex flex-col space-y-4">
           {/* ─── CARD 1: LATEST INCIDENT ────────────────────────────────────── */}
-          <div className="flex-1 rounded-xl bg-slate-900/95 border border-slate-800 shadow-tactical-card p-4 flex flex-col justify-between overflow-hidden relative group hover:border-rose-500/50 transition-all duration-300">
-            {/* Ambient Red Glow in corner */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-rose-600/5 rounded-bl-full pointer-events-none" />
-
+          <div className="flex-1 rounded-xl bg-white border border-slate-200 shadow-sm p-4 flex flex-col justify-between overflow-hidden hover:border-blue-300 transition-all duration-200">
             <div className="space-y-3">
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
                 <div className="flex items-center space-x-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-red-beacon" />
-                  <h4 className="text-xs font-sans font-bold text-rose-400 uppercase tracking-wider flex items-center space-x-1.5">
-                    <Flame className="w-4 h-4 text-rose-400" />
-                    <span>Latest Incident</span>
+                  <Flame className="w-4 h-4 text-rose-600" />
+                  <h4 className="text-xs font-sans font-bold text-slate-900 uppercase tracking-wide">
+                    Latest Incident
                   </h4>
                 </div>
 
                 <div className="flex items-center space-x-1.5">
                   {latestIncident && (
                     <span
-                      className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded font-bold border ${
+                      className={`text-[10px] font-sans uppercase px-2 py-0.5 rounded font-bold border ${
                         latestIncident.priority === 'critical'
-                          ? 'bg-rose-950 text-rose-300 border-rose-800'
-                          : 'bg-amber-950 text-amber-300 border-amber-800'
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200'
                       }`}
                     >
                       {latestIncident.priority}
                     </span>
                   )}
                   {latestIncident && (
-                    <span className="text-[10px] font-sans px-2 py-0.5 rounded bg-slate-950 text-slate-300 border border-slate-800 font-semibold">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-semibold">
                       {latestIncident.code || 'INC'}
                     </span>
                   )}
@@ -671,13 +656,13 @@ export default function DashboardOverview({
                   <div>
                     <h5
                       onClick={() => onSelectRecord(latestIncident)}
-                      className="text-sm font-bold text-slate-100 hover:text-rose-400 cursor-pointer transition-colors leading-snug line-clamp-2"
+                      className="text-sm font-bold text-slate-900 hover:text-blue-600 cursor-pointer transition-colors leading-snug line-clamp-2"
                       title={latestIncident.title}
                     >
                       {latestIncident.title}
                     </h5>
-                    <div className="text-[11px] text-slate-400 font-sans mt-0.5 flex items-center space-x-1.5">
-                      <Clock className="w-3 h-3 text-slate-500" />
+                    <div className="text-[11px] text-slate-500 font-sans mt-0.5 flex items-center space-x-1.5">
+                      <Clock className="w-3 h-3 text-slate-400" />
                       <span>
                         {latestIncident.metadata?.dtg ||
                           toZuluDTG(latestIncident.metadata?.incident_date || latestIncident.created_at)}
@@ -686,27 +671,27 @@ export default function DashboardOverview({
                   </div>
 
                   {/* Location & MGRS */}
-                  <div className="p-2 rounded-lg bg-slate-950/70 border border-slate-800/80 space-y-1">
-                    <div className="flex items-start space-x-1.5 text-xs text-slate-300 font-sans">
-                      <MapPin className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
+                  <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
+                    <div className="flex items-start space-x-1.5 text-xs text-slate-700 font-sans">
+                      <MapPin className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
                       <span className="line-clamp-1">{latestIncident.location_name || 'AOR Location'}</span>
                     </div>
 
                     {latestIncident.metadata?.mgrs && (
-                      <div className="flex items-center justify-between pt-1 border-t border-slate-800/60 text-[11px]">
-                        <span className="text-slate-400 font-mono">
-                          MGRS: <span className="text-cyan-300 font-semibold">{formatMGRSDisplay(latestIncident.metadata.mgrs)}</span>
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-200/80 text-[11px]">
+                        <span className="text-slate-600 font-mono">
+                          MGRS: <span className="text-blue-700 font-bold">{formatMGRSDisplay(latestIncident.metadata.mgrs)}</span>
                         </span>
                         <button
                           type="button"
                           onClick={() => handleCopy(latestIncident.metadata.mgrs, 'inc-mgrs')}
-                          className="text-[10px] text-slate-400 hover:text-cyan-300 flex items-center space-x-1"
+                          className="text-[10px] text-slate-500 hover:text-blue-600 flex items-center space-x-1"
                           title="Copy MGRS Grid Coordinates"
                         >
                           {copiedText === 'inc-mgrs' ? (
                             <>
-                              <Check className="w-3 h-3 text-emerald-400" />
-                              <span className="text-emerald-400">Copied</span>
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span className="text-emerald-600 font-medium">Copied</span>
                             </>
                           ) : (
                             <>
@@ -721,7 +706,7 @@ export default function DashboardOverview({
 
                   {/* Narrative Brief */}
                   {latestIncident.description && (
-                    <div className="text-xs text-slate-300/90 font-sans line-clamp-3 bg-slate-950/40 p-2 rounded border border-slate-800/50 leading-relaxed">
+                    <div className="text-xs text-slate-600 font-sans line-clamp-3 bg-slate-50 p-2.5 rounded-lg border border-slate-200 leading-relaxed">
                       {latestIncident.description}
                     </div>
                   )}
@@ -729,48 +714,48 @@ export default function DashboardOverview({
                   {/* Operational Tags */}
                   <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
                     {latestIncident.metadata?.operation_type && (
-                      <span className="px-2 py-0.5 rounded bg-rose-950/50 text-rose-300 border border-rose-900/60 font-medium">
+                      <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-medium">
                         {latestIncident.metadata.operation_type}
                       </span>
                     )}
                     {latestIncident.metadata?.reporting_unit && (
-                      <span className="px-2 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800 font-medium">
+                      <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 font-medium">
                         Unit: {latestIncident.metadata.reporting_unit}
                       </span>
                     )}
-                    <span className="px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-900/60 font-medium">
+                    <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">
                       Status: {latestIncident.status}
                     </span>
                   </div>
                 </div>
               ) : (
-                <div className="text-xs text-slate-400 font-sans py-8 text-center border border-dashed border-slate-800 rounded-lg">
+                <div className="text-xs text-slate-500 font-sans py-8 text-center border border-dashed border-slate-200 rounded-lg">
                   No tactical incidents currently recorded.
                 </div>
               )}
             </div>
 
-            {/* Actions & Mini Switcher */}
+            {/* Actions & Mini Switcher (matching OperationCell buttons) */}
             {latestIncident && (
-              <div className="pt-3 border-t border-slate-800/80 space-y-2 mt-3">
+              <div className="pt-3 border-t border-slate-200 space-y-2 mt-3">
                 {/* Action Buttons */}
                 <div className="flex items-center space-x-2">
                   <button
                     type="button"
                     onClick={() => handleFocusRecord(latestIncident.id)}
-                    className="flex-1 flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg bg-rose-950/80 border border-rose-800 text-rose-200 hover:bg-rose-900 hover:border-rose-600 text-xs font-sans font-semibold transition-all shadow-sm"
+                    className="flex-1 flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-sans font-semibold transition-all shadow-sm active:scale-95"
                   >
-                    <Crosshair className="w-3.5 h-3.5 text-rose-400" />
+                    <Crosshair className="w-3.5 h-3.5" />
                     <span>Focus on Map</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => onSelectRecord(latestIncident)}
-                    className="flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 text-xs font-sans font-medium transition-all"
+                    className="flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:border-blue-400 text-slate-700 hover:text-slate-900 text-xs font-sans font-medium transition-all shadow-sm active:scale-95"
                     title="View Full Incident Record"
                   >
-                    <FileText className="w-3.5 h-3.5 text-slate-400" />
+                    <FileText className="w-3.5 h-3.5 text-slate-500" />
                     <span>Details</span>
                   </button>
                 </div>
@@ -791,8 +776,8 @@ export default function DashboardOverview({
                         }}
                         className={`text-[10px] px-2 py-0.5 rounded font-mono shrink-0 transition-all ${
                           selectedIncidentIndex === idx
-                            ? 'bg-rose-900/90 text-rose-200 border border-rose-600 font-bold'
-                            : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
+                            ? 'bg-blue-600 text-white font-bold shadow-sm'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:text-slate-900 hover:bg-slate-50'
                         }`}
                       >
                         {inc.code || `INC-${idx + 1}`}
@@ -802,7 +787,7 @@ export default function DashboardOverview({
                       <button
                         type="button"
                         onClick={() => onNavigateCategory('incidents')}
-                        className="text-[10px] text-cyan-400 hover:underline shrink-0 ml-auto flex items-center font-sans font-medium"
+                        className="text-[10px] text-blue-600 hover:underline shrink-0 ml-auto flex items-center font-sans font-semibold"
                       >
                         <span>All</span>
                         <ChevronRight className="w-3 h-3" />
@@ -815,18 +800,14 @@ export default function DashboardOverview({
           </div>
 
           {/* ─── CARD 2: LATEST RIDO ────────────────────────────────────────── */}
-          <div className="flex-1 rounded-xl bg-slate-900/95 border border-slate-800 shadow-tactical-card p-4 flex flex-col justify-between overflow-hidden relative group hover:border-amber-500/50 transition-all duration-300">
-            {/* Ambient Amber Glow */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-600/5 rounded-bl-full pointer-events-none" />
-
+          <div className="flex-1 rounded-xl bg-white border border-slate-200 shadow-sm p-4 flex flex-col justify-between overflow-hidden hover:border-blue-300 transition-all duration-200">
             <div className="space-y-3">
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
                 <div className="flex items-center space-x-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
-                  <h4 className="text-xs font-sans font-bold text-amber-400 uppercase tracking-wider flex items-center space-x-1.5">
-                    <Users className="w-4 h-4 text-amber-400" />
-                    <span>Latest Rido</span>
+                  <Users className="w-4 h-4 text-blue-600" />
+                  <h4 className="text-xs font-sans font-bold text-slate-900 uppercase tracking-wide">
+                    Latest Rido
                   </h4>
                 </div>
 
@@ -835,17 +816,17 @@ export default function DashboardOverview({
                     <span
                       className={`text-[10px] font-sans uppercase px-2 py-0.5 rounded font-bold border ${
                         latestRido.status === 'Active'
-                          ? 'bg-rose-950 text-rose-300 border-rose-800'
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
                           : latestRido.status === 'Under Mediation'
-                          ? 'bg-amber-950 text-amber-300 border-amber-800'
-                          : 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                       }`}
                     >
                       {latestRido.status || 'Active'}
                     </span>
                   )}
                   {latestRido && (
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-950 text-slate-300 border border-slate-800 font-semibold">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-semibold">
                       {latestRido.case_code || 'RIDO'}
                     </span>
                   )}
@@ -859,42 +840,42 @@ export default function DashboardOverview({
                   <div>
                     <h5
                       onClick={() => latestRidoRecord && onSelectRecord(latestRidoRecord)}
-                      className="text-sm font-bold text-slate-100 hover:text-amber-400 cursor-pointer transition-colors leading-snug line-clamp-2"
+                      className="text-sm font-bold text-slate-900 hover:text-blue-600 cursor-pointer transition-colors leading-snug line-clamp-2"
                       title={latestRido.feuding_parties}
                     >
                       {latestRido.feuding_parties || 'Clan Conflict Feud'}
                     </h5>
-                    <div className="text-[11px] text-amber-300/90 font-sans mt-0.5 flex items-center space-x-1.5">
-                      <Sparkles className="w-3 h-3 text-amber-400" />
-                      <span className="font-medium">Root Cause: {latestRido.root_cause || 'Land Dispute / Personal Grudge'}</span>
+                    <div className="text-[11px] text-slate-500 font-sans mt-0.5 flex items-center space-x-1.5">
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      <span className="font-medium text-slate-600">Root Cause: {latestRido.root_cause || 'Land Dispute / Personal Grudge'}</span>
                     </div>
                   </div>
 
                   {/* Parties Visual Split */}
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="p-2 rounded-lg bg-slate-950/70 border border-slate-800 space-y-0.5">
-                      <div className="text-[10px] font-mono text-cyan-400 font-bold uppercase tracking-wider">
+                    <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-0.5">
+                      <div className="text-[10px] font-mono text-blue-600 font-bold uppercase tracking-wider">
                         Party A
                       </div>
-                      <div className="text-slate-200 font-medium truncate text-[11px]">
+                      <div className="text-slate-900 font-medium truncate text-[11px]">
                         {latestRido.party_a || latestRido.party_a_personalities || 'Party A Clan'}
                       </div>
                     </div>
 
-                    <div className="p-2 rounded-lg bg-slate-950/70 border border-slate-800 space-y-0.5">
-                      <div className="text-[10px] font-mono text-rose-400 font-bold uppercase tracking-wider">
+                    <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-0.5">
+                      <div className="text-[10px] font-mono text-rose-600 font-bold uppercase tracking-wider">
                         Party B
                       </div>
-                      <div className="text-slate-200 font-medium truncate text-[11px]">
+                      <div className="text-slate-900 font-medium truncate text-[11px]">
                         {latestRido.party_b || latestRido.party_b_personalities || 'Party B Clan'}
                       </div>
                     </div>
                   </div>
 
                   {/* Location & Coordinates */}
-                  <div className="p-2 rounded-lg bg-slate-950/70 border border-slate-800/80 space-y-1">
-                    <div className="flex items-start space-x-1.5 text-xs text-slate-300 font-sans">
-                      <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
+                    <div className="flex items-start space-x-1.5 text-xs text-slate-700 font-sans">
+                      <MapPin className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                       <span className="line-clamp-1">
                         {latestRido.address ||
                           `${latestRido.barangay ? latestRido.barangay + ', ' : ''}${latestRido.municipality || 'Maguindanao del Sur'}`}
@@ -902,20 +883,20 @@ export default function DashboardOverview({
                     </div>
 
                     {(latestRido.mgrs || latestRido.party_a_mgrs) && (
-                      <div className="flex items-center justify-between pt-1 border-t border-slate-800/60 text-[11px]">
-                        <span className="text-slate-400 font-mono">
-                          MGRS: <span className="text-amber-300 font-semibold">{formatMGRSDisplay(latestRido.mgrs || latestRido.party_a_mgrs)}</span>
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-200/80 text-[11px]">
+                        <span className="text-slate-600 font-mono">
+                          MGRS: <span className="text-blue-700 font-bold">{formatMGRSDisplay(latestRido.mgrs || latestRido.party_a_mgrs)}</span>
                         </span>
                         <button
                           type="button"
                           onClick={() => handleCopy(latestRido.mgrs || latestRido.party_a_mgrs, 'rido-mgrs')}
-                          className="text-[10px] text-slate-400 hover:text-amber-300 flex items-center space-x-1"
+                          className="text-[10px] text-slate-500 hover:text-blue-600 flex items-center space-x-1"
                           title="Copy MGRS Grid Coordinates"
                         >
                           {copiedText === 'rido-mgrs' ? (
                             <>
-                              <Check className="w-3 h-3 text-emerald-400" />
-                              <span className="text-emerald-400">Copied</span>
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span className="text-emerald-600 font-medium">Copied</span>
                             </>
                           ) : (
                             <>
@@ -930,22 +911,22 @@ export default function DashboardOverview({
 
                   {/* Mediation Lead */}
                   {latestRido.mediating_agency && (
-                    <div className="text-[11px] text-slate-400 font-sans flex items-center space-x-1.5">
-                      <span className="text-slate-500 font-semibold">Mediating Unit:</span>
-                      <span className="text-slate-300 font-medium">{latestRido.mediating_agency}</span>
+                    <div className="text-[11px] text-slate-500 font-sans flex items-center space-x-1.5">
+                      <span className="text-slate-400 font-semibold">Mediating Unit:</span>
+                      <span className="text-slate-700 font-medium">{latestRido.mediating_agency}</span>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="text-xs text-slate-400 font-sans py-8 text-center border border-dashed border-slate-800 rounded-lg">
+                <div className="text-xs text-slate-500 font-sans py-8 text-center border border-dashed border-slate-200 rounded-lg">
                   No active Rido records found.
                 </div>
               )}
             </div>
 
-            {/* Actions & Mini Switcher */}
+            {/* Actions & Mini Switcher (matching OperationCell buttons) */}
             {latestRido && (
-              <div className="pt-3 border-t border-slate-800/80 space-y-2 mt-3">
+              <div className="pt-3 border-t border-slate-200 space-y-2 mt-3">
                 {/* Action Buttons */}
                 <div className="flex items-center space-x-2">
                   <button
@@ -955,9 +936,9 @@ export default function DashboardOverview({
                         handleFocusRecord(latestRidoRecord.id);
                       }
                     }}
-                    className="flex-1 flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-950/80 border border-amber-800 text-amber-200 hover:bg-amber-900 hover:border-amber-600 text-xs font-sans font-semibold transition-all shadow-sm"
+                    className="flex-1 flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-sans font-semibold transition-all shadow-sm active:scale-95"
                   >
-                    <Crosshair className="w-3.5 h-3.5 text-amber-400" />
+                    <Crosshair className="w-3.5 h-3.5" />
                     <span>Focus on Map</span>
                   </button>
 
@@ -968,10 +949,10 @@ export default function DashboardOverview({
                         onSelectRecord(latestRidoRecord);
                       }
                     }}
-                    className="flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 text-xs font-sans font-medium transition-all"
+                    className="flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:border-blue-400 text-slate-700 hover:text-slate-900 text-xs font-sans font-medium transition-all shadow-sm active:scale-95"
                     title="View Full Rido Dossier"
                   >
-                    <FileText className="w-3.5 h-3.5 text-slate-400" />
+                    <FileText className="w-3.5 h-3.5 text-slate-500" />
                     <span>Dossier</span>
                   </button>
                 </div>
@@ -992,8 +973,8 @@ export default function DashboardOverview({
                         }}
                         className={`text-[10px] px-2 py-0.5 rounded font-mono shrink-0 transition-all ${
                           selectedRidoIndex === idx
-                            ? 'bg-amber-900/90 text-amber-200 border border-amber-600 font-bold'
-                            : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
+                            ? 'bg-blue-600 text-white font-bold shadow-sm'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:text-slate-900 hover:bg-slate-50'
                         }`}
                       >
                         {r.case_code || `RIDO-${idx + 1}`}
