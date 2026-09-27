@@ -1743,22 +1743,22 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
                   </div>
 
                   {/* Munitions Stock */}
-                  <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 text-xs space-y-1.5">
-                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <div className="p-2.5 rounded-lg bg-slate-900 text-white text-xs space-y-1.5">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                       Ready Ammunition Emplaced
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="p-1.5 rounded bg-white border border-slate-200 shadow-sm">
-                        <div className="text-[10px] text-slate-500">High Explosive</div>
-                        <div className="font-mono font-bold text-rose-600 text-sm">{dep.rounds_he}</div>
+                      <div className="p-1.5 rounded bg-white/10">
+                        <div className="text-[10px] text-slate-300">High Explosive</div>
+                        <div className="font-mono font-bold text-rose-400 text-sm">{dep.rounds_he}</div>
                       </div>
-                      <div className="p-1.5 rounded bg-white border border-slate-200 shadow-sm">
-                        <div className="text-[10px] text-slate-500">Smoke / Screen</div>
-                        <div className="font-mono font-bold text-amber-600 text-sm">{dep.rounds_smoke}</div>
+                      <div className="p-1.5 rounded bg-white/10">
+                        <div className="text-[10px] text-slate-300">Smoke / Screen</div>
+                        <div className="font-mono font-bold text-amber-300 text-sm">{dep.rounds_smoke}</div>
                       </div>
-                      <div className="p-1.5 rounded bg-white border border-slate-200 shadow-sm">
-                        <div className="text-[10px] text-slate-500">Illumination</div>
-                        <div className="font-mono font-bold text-blue-600 text-sm">{dep.rounds_illum}</div>
+                      <div className="p-1.5 rounded bg-white/10">
+                        <div className="text-[10px] text-slate-300">Illumination</div>
+                        <div className="font-mono font-bold text-blue-300 text-sm">{dep.rounds_illum}</div>
                       </div>
                     </div>
                   </div>

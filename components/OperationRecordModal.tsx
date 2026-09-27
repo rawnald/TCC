@@ -31,6 +31,8 @@ interface OperationRecordModalProps {
   onSave: (record: Partial<RecordItem>) => Promise<void> | void;
   initialRecord?: RecordItem | null;
   defaultArea?: string;
+  dutyOfficer?: string;
+  callsign?: string;
 }
 
 const COMMON_OPERATION_TYPES = [
@@ -68,6 +70,8 @@ export default function OperationRecordModal({
   onSave,
   initialRecord,
   defaultArea = '',
+  dutyOfficer = '',
+  callsign = '',
 }: OperationRecordModalProps) {
   // Primary 5 Requested Fields
   const [mgrs, setMgrs] = useState('');
@@ -92,28 +96,30 @@ export default function OperationRecordModal({
   const [showSqlSchema, setShowSqlSchema] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
 
-  const SQL_TABLE_SCHEMA = `-- Standalone Dedicated Incidents Table in Supabase (Separate from unified records)
+  const SQL_TABLE_SCHEMA = `-- Standalone Dedicated Incidents Table in Supabase
 -- 1. Drop view if previously created as a view on records
 DROP VIEW IF EXISTS public.incidents CASCADE;
 
 -- 2. Create standalone incidents table
 CREATE TABLE IF NOT EXISTS public.incidents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  incident_number TEXT,
   code TEXT,
   title TEXT NOT NULL,
+  incident_type TEXT,
   operation_type TEXT,
-  area TEXT,
-  location_name TEXT,
-  mgrs TEXT,
-  priority TEXT DEFAULT 'medium',
+  severity TEXT DEFAULT 'medium',
   status TEXT DEFAULT 'active',
+  dtg TIMESTAMPTZ DEFAULT now(),
+  incident_date DATE DEFAULT CURRENT_DATE,
+  mgrs TEXT,
   lat DOUBLE PRECISION,
   lng DOUBLE PRECISION,
+  area TEXT,
+  location_name TEXT,
+  reporting_unit TEXT,
   narrative TEXT,
   description TEXT,
-  dtg TEXT,
-  incident_date TIMESTAMPTZ DEFAULT now(),
-  metadata JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -295,47 +301,66 @@ EXCEPTION WHEN duplicate_object THEN null; END $$;`;
         updated_at: new Date().toISOString(),
       };
 
-      // 1. Direct Supabase Cloud Save: Exclusively to dedicated 'incidents' table (NOT unified records table)
+      // 1. Direct Supabase Cloud Save: Exclusively to dedicated 'incidents' table
       if (isSupabaseConfigured() && supabase) {
-        try {
-          const incidentPayload = {
-            id: recordId,
-            code: operationRecord.code,
-            title: operationRecord.title,
-            operation_type: resolvedType,
-            area: area.trim(),
-            location_name: area.trim(),
-            mgrs: cleanM || null,
-            priority: operationRecord.priority,
-            status: operationRecord.status,
-            lat: finalLat,
-            lng: finalLng,
-            narrative: narrative.trim(),
-            description: narrative.trim(),
-            dtg: formatDTG(date),
-            incident_date: isoDate,
-            metadata: {
-              mgrs: cleanM || null,
-              grid_ref: cleanM || null,
-              area: area.trim(),
-              operation_date: isoDate,
-              operation_type: resolvedType,
-              result: narrative.trim(),
-              narrative: narrative.trim(),
-              dtg: formatDTG(date),
-            },
-            created_at: operationRecord.created_at,
-            updated_at: operationRecord.updated_at,
-          };
+        const incidentPayload = {
+          id: recordId,
+          code: operationRecord.code,
+          incident_number: operationRecord.code,
+          title: operationRecord.title,
+          operation_type: resolvedType,
+          incident_type: resolvedType,
+          area: area.trim(),
+          location_name: area.trim(),
+          mgrs: cleanM || null,
+          severity: operationRecord.priority || 'medium',
+          status: operationRecord.status || 'active',
+          lat: finalLat,
+          lng: finalLng,
+          narrative: narrative.trim(),
+          description: narrative.trim(),
+          dtg: isoDate,
+          incident_date: isoDate.split('T')[0],
+          reporting_unit: callsign || dutyOfficer || 'Operation Cell TOC',
+          created_at: operationRecord.created_at,
+          updated_at: operationRecord.updated_at,
+        };
 
-          const { error: incError } = await supabase.from('incidents').upsert([incidentPayload]);
-          if (incError) {
-            console.warn('Dedicated incidents table upsert notice:', incError.message);
-          } else {
-            setSyncStatus('Saved to dedicated incidents table in Supabase');
-          }
-        } catch (dbErr: any) {
-          console.error('Supabase direct communication notice:', dbErr);
+        const { error: incError } = await supabase.from('incidents').upsert([incidentPayload]);
+        if (incError) {
+          console.error('Dedicated incidents table upsert error:', incError);
+          throw new Error(`Failed to save incident in Supabase: ${incError.message}`);
+        } else {
+          setSyncStatus('Saved to dedicated incidents table in Supabase');
+        }
+
+        // Optional non-blocking mirror to unified 'records' table
+        try {
+          await supabase.from('records').upsert([
+            {
+              id: recordId,
+              code: operationRecord.code,
+              title: operationRecord.title,
+              category: 'incidents',
+              description: narrative.trim(),
+              status: operationRecord.status || 'active',
+              priority: operationRecord.priority || 'medium',
+              lat: finalLat,
+              lng: finalLng,
+              location_name: area.trim(),
+              metadata: {
+                mgrs: cleanM || null,
+                area: area.trim(),
+                operation_type: resolvedType,
+                narrative: narrative.trim(),
+                reporting_unit: callsign || dutyOfficer || 'Operation Cell TOC',
+              },
+              created_at: operationRecord.created_at,
+              updated_at: operationRecord.updated_at,
+            },
+          ]);
+        } catch {
+          // non-blocking
         }
       }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { RecordItem, RecordCategory, RecordStatus } from '@/types';
+import { RecordItem, RecordCategory, RecordStatus, RecordPriority } from '@/types';
 import ForceUnitModal, { ForceUnit } from './ForceUnitModal';
 import UnitTaskingModal, { UnitTasking } from './UnitTaskingModal';
 import MovementModal, { MovementDeployment } from './MovementModal';
@@ -215,12 +215,12 @@ export default function OperationCellWorkspace({
 
           return {
             id: inc.id,
-            code: inc.code || `INC-${Math.floor(100 + Math.random() * 900)}`,
-            title: inc.title || `${inc.operation_type || 'Incident'} — ${inc.area || 'AOR'}`,
+            code: inc.code || inc.incident_number || `INC-${Math.floor(100 + Math.random() * 900)}`,
+            title: inc.title || `${inc.operation_type || inc.incident_type || 'Incident'} — ${inc.area || inc.location_name || 'AOR'}`,
             category: 'incidents' as RecordCategory,
             description: inc.narrative || inc.description || '',
             status: inc.status || 'active',
-            priority: inc.priority || 'medium',
+            priority: (inc.severity || inc.priority || 'medium') as RecordPriority,
             lat,
             lng,
             location_name: inc.area || inc.location_name || '',
@@ -228,11 +228,13 @@ export default function OperationCellWorkspace({
               ...(inc.metadata || {}),
               mgrs,
               area: inc.area || inc.location_name,
-              operation_type: inc.operation_type,
+              operation_type: inc.operation_type || inc.incident_type,
+              incident_type: inc.incident_type || inc.operation_type,
+              reporting_unit: inc.reporting_unit,
               narrative: inc.narrative || inc.description,
               result: inc.narrative || inc.description,
               dtg: inc.dtg,
-              operation_date: inc.incident_date || inc.created_at,
+              operation_date: inc.incident_date || inc.dtg || inc.created_at,
             },
             created_at: inc.created_at,
             updated_at: inc.updated_at,
@@ -3173,8 +3175,12 @@ export default function OperationCellWorkspace({
           setSigactViewMode('table');
           setIsSigactsExpanded(true);
           setIncidentBoardViewMode('table');
+          // Re-fetch from Supabase to guarantee synchronized state
+          await fetchSupabaseIncidents();
         }}
         initialRecord={selectedOpRecord}
+        dutyOfficer={dutyOfficer}
+        callsign={callsign}
       />
 
       {/* Force Unit Modal */}
