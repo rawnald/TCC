@@ -41,10 +41,11 @@ export default function DashboardOverview({
   onNavigateCategory,
   onRefresh,
 }: DashboardOverviewProps) {
-  // ─── 1. Checklist Tabbings State (Forces Units, PIAGs Locations, Incidents) ───
+  // ─── 1. Checklist Tabbings State (Forces Units, PIAGs Locations, Rido, Incidents) ───
   const [layerChecklist, setLayerChecklist] = useState({
     forcesUnits: true,
     piags: true,
+    rido: true,
     incidents: true,
   });
 
@@ -369,51 +370,52 @@ export default function DashboardOverview({
       }));
   }, [ridoList, records]);
 
-  // Active items
+  // Active items for right cards
   const latestIncident = effectiveIncidents[selectedIncidentIndex] || effectiveIncidents[0] || null;
   const latestRido = effectiveRidoList[selectedRidoIndex] || effectiveRidoList[0] || null;
 
-  // ─── 8. Convert Latest Rido into a Map RecordItem (for Focus & Plot) ─────────
-  const latestRidoRecord = useMemo((): RecordItem | null => {
-    if (!latestRido) return null;
-    let lat = Number(latestRido.lat) || 0;
-    let lng = Number(latestRido.lng) || 0;
-    const mgrs = latestRido.mgrs || latestRido.party_a_mgrs || latestRido.party_b_mgrs || '';
+  // ─── 8. Convert All Rido Records to RecordItem (for Checklist Layer Plotting) ───
+  const effectiveRidoRecords = useMemo((): RecordItem[] => {
+    return effectiveRidoList.map((r: any) => {
+      let lat = Number(r.lat) || 0;
+      let lng = Number(r.lng) || 0;
+      const mgrs = r.mgrs || r.party_a_mgrs || r.party_b_mgrs || '';
 
-    if (mgrs) {
-      const parsed = parseMGRSToCoords(mgrs);
-      if (parsed) {
-        lat = parsed[0];
-        lng = parsed[1];
+      if (mgrs) {
+        const parsed = parseMGRSToCoords(mgrs);
+        if (parsed) {
+          lat = parsed[0];
+          lng = parsed[1];
+        }
       }
-    }
 
-    return {
-      id: latestRido.id || 'LATEST-RIDO-PIN',
-      code: latestRido.case_code || 'RIDO-RECORD',
-      title: latestRido.feuding_parties || 'Clan Dispute',
-      category: 'locations',
-      description: latestRido.narrative_history || `${latestRido.party_a || 'Party A'} vs ${latestRido.party_b || 'Party B'} — Root Cause: ${latestRido.root_cause || 'Unspecified'}`,
-      status: latestRido.status === 'Active' ? 'active' : 'pending',
-      priority: 'high',
-      lat,
-      lng,
-      location_name: latestRido.address || `${latestRido.barangay ? latestRido.barangay + ', ' : ''}${latestRido.municipality || 'Conflict Zone'}`,
-      metadata: {
-        is_rido_party: true,
-        cmo_type: 'rido_party',
-        clan_name: latestRido.feuding_parties || 'Rido Feud',
-        party_a: latestRido.party_a,
-        party_b: latestRido.party_b,
-        mgrs,
-        root_cause: latestRido.root_cause,
-        mediating_agency: latestRido.mediating_agency,
-        lead_mediator: latestRido.lead_mediator,
-      },
-      created_at: latestRido.created_at || new Date().toISOString(),
-      updated_at: latestRido.updated_at || new Date().toISOString(),
-    };
-  }, [latestRido]);
+      return {
+        id: r.id || `RIDO-${Math.random()}`,
+        code: r.case_code || 'RIDO-RECORD',
+        title: r.feuding_parties || 'Clan Dispute',
+        category: 'locations' as RecordCategory,
+        description: r.narrative_history || `${r.party_a || 'Party A'} vs ${r.party_b || 'Party B'} — Root Cause: ${r.root_cause || 'Unspecified'}`,
+        status: r.status === 'Active' ? 'active' : 'pending',
+        priority: 'high',
+        lat,
+        lng,
+        location_name: r.address || `${r.barangay ? r.barangay + ', ' : ''}${r.municipality || 'Conflict Zone'}`,
+        metadata: {
+          is_rido_party: true,
+          cmo_type: 'rido_party',
+          clan_name: r.feuding_parties || 'Rido Feud',
+          party_a: r.party_a,
+          party_b: r.party_b,
+          mgrs,
+          root_cause: r.root_cause,
+          mediating_agency: r.mediating_agency,
+          lead_mediator: r.lead_mediator,
+        },
+        created_at: r.created_at || new Date().toISOString(),
+        updated_at: r.updated_at || new Date().toISOString(),
+      } as RecordItem;
+    });
+  }, [effectiveRidoList]);
 
   // ─── 9. Build Visible Map Records Based on Checklist Tabbings ────────────────
   const visibleMapRecords = useMemo(() => {
@@ -429,16 +431,18 @@ export default function DashboardOverview({
       combined.push(...effectivePiags);
     }
 
-    // 3. Incidents Layer
-    if (layerChecklist.incidents) {
-      combined.push(...effectiveIncidents);
+    // 3. Rido Layer (next to PIAGs Locations)
+    if (layerChecklist.rido) {
+      combined.push(...effectiveRidoRecords);
+    } else if (focusedRecordId && effectiveRidoRecords.some((r) => r.id === focusedRecordId)) {
+      // If user focused a specific Rido while layer is unchecked, still keep focused pin visible
+      const focusedRido = effectiveRidoRecords.find((r) => r.id === focusedRecordId);
+      if (focusedRido) combined.push(focusedRido);
     }
 
-    // 4. Always include latest Rido pin if focused or available with coordinates
-    if (latestRidoRecord && resolveCoordinates(latestRidoRecord)) {
-      if (!combined.some((r) => r.id === latestRidoRecord.id)) {
-        combined.push(latestRidoRecord);
-      }
+    // 4. Incidents Layer
+    if (layerChecklist.incidents) {
+      combined.push(...effectiveIncidents);
     }
 
     return combined;
@@ -446,8 +450,9 @@ export default function DashboardOverview({
     layerChecklist,
     effectiveForceUnits,
     effectivePiags,
+    effectiveRidoRecords,
     effectiveIncidents,
-    latestRidoRecord,
+    focusedRecordId,
   ]);
 
   // Handle focusing on an item
@@ -475,9 +480,9 @@ export default function DashboardOverview({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
         {/* ─── Left 2 Columns: Upper Horizontal Checklist Tabbings + Tactical Map */}
         <div className="lg:col-span-2 flex flex-col space-y-3">
-          {/* Upper Portion: Horizontal Checklist Tabbings (Light theme matching OperationCell) */}
+          {/* Upper Portion: Horizontal Checklist Tabbings (Clean light theme matching OperationCell) */}
           <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-2.5 sm:p-3 flex flex-wrap items-center justify-between gap-3">
-            {/* Left Header / Badge */}
+            {/* Left Header */}
             <div className="flex items-center space-x-2">
               <Layers className="w-4 h-4 text-blue-600" />
               <span className="text-xs font-sans font-bold text-slate-900 uppercase tracking-wide">
@@ -555,7 +560,41 @@ export default function DashboardOverview({
                 </span>
               </button>
 
-              {/* Tab 3: Incidents */}
+              {/* Tab 3: Rido (Directly next to PIAGs Locations) */}
+              <button
+                type="button"
+                onClick={() =>
+                  setLayerChecklist((prev) => ({
+                    ...prev,
+                    rido: !prev.rido,
+                  }))
+                }
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-sans whitespace-nowrap transition-all select-none shrink-0 ${
+                  layerChecklist.rido
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200 font-bold shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-slate-200'
+                }`}
+                title="Toggle Rido (Clan Disputes) locations layer on Tactical Map"
+              >
+                {layerChecklist.rido ? (
+                  <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
+                ) : (
+                  <Square className="w-4 h-4 text-slate-400 shrink-0" />
+                )}
+                <Users className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <span className="tracking-wide">Rido</span>
+                <span
+                  className={`text-[10px] font-sans px-1.5 py-0.5 rounded border shrink-0 font-bold ${
+                    layerChecklist.rido
+                      ? 'bg-blue-100 text-blue-800 border-blue-200'
+                      : 'bg-slate-100 text-slate-600 border-slate-200'
+                  }`}
+                >
+                  {effectiveRidoRecords.length}
+                </span>
+              </button>
+
+              {/* Tab 4: Incidents */}
               <button
                 type="button"
                 onClick={() =>
@@ -589,7 +628,7 @@ export default function DashboardOverview({
                 </span>
               </button>
 
-              {/* Refresh Button (copied from OperationCellWorkspace) */}
+              {/* Refresh Button */}
               <button
                 type="button"
                 onClick={handleFullRefresh}
@@ -735,7 +774,7 @@ export default function DashboardOverview({
               )}
             </div>
 
-            {/* Actions & Mini Switcher (matching OperationCell buttons) */}
+            {/* Actions & Mini Switcher */}
             {latestIncident && (
               <div className="pt-3 border-t border-slate-200 space-y-2 mt-3">
                 {/* Action Buttons */}
@@ -839,7 +878,10 @@ export default function DashboardOverview({
                   {/* Feuding Parties */}
                   <div>
                     <h5
-                      onClick={() => latestRidoRecord && onSelectRecord(latestRidoRecord)}
+                      onClick={() => {
+                        const targetRidoRec = effectiveRidoRecords[selectedRidoIndex] || effectiveRidoRecords[0];
+                        if (targetRidoRec) onSelectRecord(targetRidoRec);
+                      }}
                       className="text-sm font-bold text-slate-900 hover:text-blue-600 cursor-pointer transition-colors leading-snug line-clamp-2"
                       title={latestRido.feuding_parties}
                     >
@@ -924,7 +966,7 @@ export default function DashboardOverview({
               )}
             </div>
 
-            {/* Actions & Mini Switcher (matching OperationCell buttons) */}
+            {/* Actions & Mini Switcher */}
             {latestRido && (
               <div className="pt-3 border-t border-slate-200 space-y-2 mt-3">
                 {/* Action Buttons */}
@@ -932,8 +974,9 @@ export default function DashboardOverview({
                   <button
                     type="button"
                     onClick={() => {
-                      if (latestRidoRecord) {
-                        handleFocusRecord(latestRidoRecord.id);
+                      const targetRidoRec = effectiveRidoRecords[selectedRidoIndex] || effectiveRidoRecords[0];
+                      if (targetRidoRec) {
+                        handleFocusRecord(targetRidoRec.id);
                       }
                     }}
                     className="flex-1 flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-sans font-semibold transition-all shadow-sm active:scale-95"
@@ -945,8 +988,9 @@ export default function DashboardOverview({
                   <button
                     type="button"
                     onClick={() => {
-                      if (latestRidoRecord) {
-                        onSelectRecord(latestRidoRecord);
+                      const targetRidoRec = effectiveRidoRecords[selectedRidoIndex] || effectiveRidoRecords[0];
+                      if (targetRidoRec) {
+                        onSelectRecord(targetRidoRec);
                       }
                     }}
                     className="flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:border-blue-400 text-slate-700 hover:text-slate-900 text-xs font-sans font-medium transition-all shadow-sm active:scale-95"
@@ -969,7 +1013,8 @@ export default function DashboardOverview({
                         type="button"
                         onClick={() => {
                           setSelectedRidoIndex(idx);
-                          if (r.id) handleFocusRecord(r.id);
+                          const matchingRec = effectiveRidoRecords[idx];
+                          if (matchingRec) handleFocusRecord(matchingRec.id);
                         }}
                         className={`text-[10px] px-2 py-0.5 rounded font-mono shrink-0 transition-all ${
                           selectedRidoIndex === idx

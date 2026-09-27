@@ -985,17 +985,17 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
         {/* TAB 1: Fire Support Status */}
         <button
           onClick={() => setActiveTab('status')}
-          className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-sans font-semibold transition-all ${
+          className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
             activeTab === 'status'
-              ? 'bg-blue-50 text-blue-700 border border-blue-200 font-bold shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
+              ? 'bg-rose-600 text-white shadow-sm'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <Activity className={`w-4 h-4 ${activeTab === 'status' ? 'text-blue-600' : 'text-slate-500'}`} />
+          <Activity className="w-4 h-4" />
           <span>Fire Support Status</span>
           <span
-            className={`px-1.5 py-0.5 rounded text-[10px] font-sans font-bold border ${
-              activeTab === 'status' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-slate-100 text-slate-600 border-slate-200'
+            className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+              activeTab === 'status' ? 'bg-rose-800 text-white' : 'bg-slate-200 text-slate-700'
             }`}
           >
             {firesKpi.activeMissions} Active
@@ -1005,17 +1005,17 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
         {/* TAB 2: Targets */}
         <button
           onClick={() => setActiveTab('targets')}
-          className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-sans font-semibold transition-all ${
+          className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
             activeTab === 'targets'
-              ? 'bg-blue-50 text-blue-700 border border-blue-200 font-bold shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
+              ? 'bg-rose-600 text-white shadow-sm'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <Target className={`w-4 h-4 ${activeTab === 'targets' ? 'text-blue-600' : 'text-slate-500'}`} />
+          <Target className="w-4 h-4" />
           <span>Targets</span>
           <span
-            className={`px-1.5 py-0.5 rounded text-[10px] font-sans font-bold border ${
-              activeTab === 'targets' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-slate-100 text-slate-600 border-slate-200'
+            className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+              activeTab === 'targets' ? 'bg-rose-800 text-white' : 'bg-slate-200 text-slate-700'
             }`}
           >
             {targets.length}
@@ -1025,17 +1025,17 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
         {/* TAB 3: Fires Deployment */}
         <button
           onClick={() => setActiveTab('deployment')}
-          className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-sans font-semibold transition-all ${
+          className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
             activeTab === 'deployment'
-              ? 'bg-blue-50 text-blue-700 border border-blue-200 font-bold shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
+              ? 'bg-rose-600 text-white shadow-sm'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <Shield className={`w-4 h-4 ${activeTab === 'deployment' ? 'text-blue-600' : 'text-slate-500'}`} />
+          <Shield className="w-4 h-4" />
           <span>Fires Deployment</span>
           <span
-            className={`px-1.5 py-0.5 rounded text-[10px] font-sans font-bold border ${
-              activeTab === 'deployment' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-slate-100 text-slate-600 border-slate-200'
+            className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+              activeTab === 'deployment' ? 'bg-rose-800 text-white' : 'bg-slate-200 text-slate-700'
             }`}
           >
             {deployments.length} Units ({firesKpi.totalTubes} Tubes)
@@ -1229,7 +1229,7 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
                     setEditingMission(null);
                     setIsMissionModalOpen(true);
                   }}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm transition-all active:scale-95"
+                  className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-sm"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Log Mission</span>
@@ -1393,9 +1393,9 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
               <div className="flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs">
                 <button
                   onClick={() => setTargetViewMode('cards')}
-                  className={`flex items-center space-x-1.5 px-2.5 py-1 rounded text-[11px] font-bold uppercase transition-all ${
+                  className={`flex items-center space-x-1 px-2.5 py-1 rounded text-[11px] font-bold uppercase transition-all ${
                     targetViewMode === 'cards'
-                      ? 'bg-blue-600 text-white font-bold shadow-sm'
+                      ? 'bg-rose-600 text-white shadow-sm'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -1404,9 +1404,9 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
                 </button>
                 <button
                   onClick={() => setTargetViewMode('table')}
-                  className={`flex items-center space-x-1.5 px-2.5 py-1 rounded text-[11px] font-bold uppercase transition-all ${
+                  className={`flex items-center space-x-1 px-2.5 py-1 rounded text-[11px] font-bold uppercase transition-all ${
                     targetViewMode === 'table'
-                      ? 'bg-blue-600 text-white font-bold shadow-sm'
+                      ? 'bg-rose-600 text-white shadow-sm'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -1421,7 +1421,7 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
                 setEditingTarget(null);
                 setIsTargetModalOpen(true);
               }}
-              className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-sans font-semibold transition-all shadow-sm active:scale-95 shrink-0"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm transition-all shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Target</span>
@@ -1497,7 +1497,7 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
                         setMapZoom(13);
                         setFocusedId(tgt.id);
                       }}
-                      className="flex items-center space-x-1 text-xs font-semibold text-blue-600 hover:text-blue-800"
+                      className="flex items-center space-x-1 text-xs font-semibold text-rose-600 hover:text-rose-800"
                     >
                       <Crosshair className="w-3.5 h-3.5" />
                       <span>Focus on Map</span>
@@ -1658,9 +1658,9 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
               <div className="flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs">
                 <button
                   onClick={() => setDeployViewMode('cards')}
-                  className={`flex items-center space-x-1.5 px-2.5 py-1 rounded text-[11px] font-bold uppercase transition-all ${
+                  className={`flex items-center space-x-1 px-2.5 py-1 rounded text-[11px] font-bold uppercase transition-all ${
                     deployViewMode === 'cards'
-                      ? 'bg-blue-600 text-white font-bold shadow-sm'
+                      ? 'bg-rose-600 text-white shadow-sm'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -1669,9 +1669,9 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
                 </button>
                 <button
                   onClick={() => setDeployViewMode('table')}
-                  className={`flex items-center space-x-1.5 px-2.5 py-1 rounded text-[11px] font-bold uppercase transition-all ${
+                  className={`flex items-center space-x-1 px-2.5 py-1 rounded text-[11px] font-bold uppercase transition-all ${
                     deployViewMode === 'table'
-                      ? 'bg-blue-600 text-white font-bold shadow-sm'
+                      ? 'bg-rose-600 text-white shadow-sm'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -1686,7 +1686,7 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
                 setEditingDeployment(null);
                 setIsDeploymentModalOpen(true);
               }}
-              className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-sans font-semibold transition-all shadow-sm active:scale-95 shrink-0"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm transition-all shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Deploy Unit</span>
@@ -1965,7 +1965,7 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
                   setCopiedSql(true);
                   setTimeout(() => setCopiedSql(false), 2000);
                 }}
-                className="flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm transition-all active:scale-95"
+                className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow transition-all"
               >
                 {copiedSql ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 <span>{copiedSql ? 'Copied to Clipboard!' : 'Copy SQL Script'}</span>
@@ -1973,7 +1973,7 @@ CREATE POLICY "Allow all fires_missions operations" ON public.fires_missions FOR
 
               <button
                 onClick={() => setIsSqlModalOpen(false)}
-                className="px-4 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-xs shadow-sm transition-all"
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs"
               >
                 Close
               </button>
