@@ -980,15 +980,10 @@ export default function CMOCellWorkspace({
       });
     });
 
-    // 3. Also include all PIAG records on this map so affiliated MILF/MNLF bases are visible
-    piagMapRecords.forEach((pm) => {
-      mapItems.push(pm);
-    });
-
     return mapItems;
-  }, [filteredRidos, piagMapRecords]);
+  }, [filteredRidos]);
 
-  // ── Tactical Links: Feud lines between Party A & B, and Alliance lines to MILF bases ─
+  // ── Tactical Links: Active feud lines between Party A & Party B ─────────────
   const ridoTacticalLinks: TacticalLink[] = useMemo(() => {
     const links: TacticalLink[] = [];
 
@@ -1002,7 +997,7 @@ export default function CMOCellWorkspace({
       const nameA = r.party_a || r.feuding_parties?.split(/vs\.?|—/i)[0]?.trim() || 'Clan A';
       const nameB = r.party_b || r.feuding_parties?.split(/vs\.?|—/i)[1]?.trim() || 'Clan B';
 
-      // 1. Feud conflict line connecting Party A and Party B
+      // Feud conflict line connecting Party A and Party B
       links.push({
         id: `feud-link-${r.id}`,
         from: [latA, lngA],
@@ -1014,52 +1009,10 @@ export default function CMOCellWorkspace({
         opacity: 0.85,
         badgeText: '(vs)',
       });
-
-      // 2. Link affiliated MILF elements for Party A
-      if (r.party_a_affiliation && r.party_a_affiliation.toUpperCase().includes('MILF')) {
-        const matchingPiag = piagRecords.find((p) =>
-          p.group_name.toLowerCase().includes('milf') ||
-          (r.party_a_affiliation && p.group_name.toLowerCase().includes(r.party_a_affiliation.toLowerCase()))
-        );
-        if (matchingPiag && matchingPiag.lat && matchingPiag.lng) {
-          links.push({
-            id: `milf-link-a-${r.id}`,
-            from: [latA, lngA],
-            to: [Number(matchingPiag.lat), Number(matchingPiag.lng)],
-            label: `MILF Affiliation: ${nameA} (affiliated) ${matchingPiag.group_name}`,
-            color: '#10b981', // Emerald green alliance line
-            dashArray: '6, 8',
-            weight: 2.5,
-            opacity: 0.9,
-            badgeText: '(affiliated)',
-          });
-        }
-      }
-
-      // 3. Link affiliated MILF elements for Party B
-      if (r.party_b_affiliation && r.party_b_affiliation.toUpperCase().includes('MILF')) {
-        const matchingPiag = piagRecords.find((p) =>
-          p.group_name.toLowerCase().includes('milf') ||
-          (r.party_b_affiliation && p.group_name.toLowerCase().includes(r.party_b_affiliation.toLowerCase()))
-        );
-        if (matchingPiag && matchingPiag.lat && matchingPiag.lng) {
-          links.push({
-            id: `milf-link-b-${r.id}`,
-            from: [latB, lngB],
-            to: [Number(matchingPiag.lat), Number(matchingPiag.lng)],
-            label: `MILF Affiliation: ${nameB} (affiliated) ${matchingPiag.group_name}`,
-            color: '#10b981', // Emerald green alliance line
-            dashArray: '6, 8',
-            weight: 2.5,
-            opacity: 0.9,
-            badgeText: '(affiliated)',
-          });
-        }
-      }
     });
 
     return links;
-  }, [filteredRidos, piagRecords]);
+  }, [filteredRidos]);
 
   const handleLocateRidoOnMap = (r: RidoRecord) => {
     setFocusedRidoId(`rido-${r.id}-party-a`);
@@ -1483,7 +1436,7 @@ NOTIFY pgrst, 'reload schema';`;
               <span>Add Rido Personality &amp; Location</span>
             </button>
           </div>
-          {/* ── RIDO TACTICAL GEOSPATIAL MAP (PARTY A, PARTY B & MILF ALLIANCE LINKS) ── */}
+          {/* ── RIDO TACTICAL GEOSPATIAL MAP (PARTY A & PARTY B FEUD CLASH LINES) ── */}
           <div
             id="rido-tactical-map-container"
             className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden"
@@ -1509,7 +1462,7 @@ NOTIFY pgrst, 'reload schema';`;
                 onRefresh={loadAllCMOData}
               />
 
-              {/* Tactical Legend Overlay for Rido Feuds & MILF Links */}
+              {/* Tactical Legend Overlay for Rido Feuds */}
               <div className="absolute bottom-3 left-3 z-[1000] bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg px-3 py-2 shadow-md flex items-center space-x-3 text-[11px] text-slate-700 font-medium max-w-[95%] overflow-x-auto">
                 <div className="flex items-center space-x-1.5 shrink-0">
                   <MapPin className="w-[15px] h-[15px] text-black fill-black" />
@@ -1519,11 +1472,6 @@ NOTIFY pgrst, 'reload schema';`;
                 <div className="flex items-center space-x-1.5 shrink-0">
                   <span className="w-4 h-0.5 border-b-2 border-dashed border-red-500 inline-block" />
                   <span className="font-semibold text-red-600">Active Feud Line (vs)</span>
-                </div>
-                <div className="h-3 w-px bg-slate-200 shrink-0" />
-                <div className="flex items-center space-x-1.5 shrink-0">
-                  <span className="w-4 h-0.5 border-b-2 border-dashed border-emerald-500 inline-block" />
-                  <span className="font-semibold text-emerald-600">MILF Affiliated Link (affiliated)</span>
                 </div>
                 <div className="h-3 w-px bg-slate-200 shrink-0" />
                 <div className="flex items-center space-x-1 shrink-0">
