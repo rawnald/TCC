@@ -12,6 +12,7 @@ import {
   generateUUID,
 } from '@/types/personnel';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
+import { openDocumentInNewTab } from '@/lib/documentUtils';
 import {
   X,
   User,
@@ -754,14 +755,13 @@ export default function PersonnelProfileModal({
                       </div>
                     </div>
                     {clearanceFile.file_data && (
-                      <a
-                        href={clearanceFile.file_data}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-2.5 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 text-[11px] font-sans font-semibold shrink-0 shadow-sm"
+                      <button
+                        type="button"
+                        onClick={() => openDocumentInNewTab(clearanceFile)}
+                        className="px-2.5 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 text-[11px] font-sans font-semibold shrink-0 shadow-sm transition-colors"
                       >
                         Preview
-                      </a>
+                      </button>
                     )}
                   </div>
                 ) : (
@@ -816,14 +816,13 @@ export default function PersonnelProfileModal({
                       </div>
                     </div>
                     {soiFile.file_data && (
-                      <a
-                        href={soiFile.file_data}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-2.5 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 text-[11px] font-sans font-semibold shrink-0 shadow-sm"
+                      <button
+                        type="button"
+                        onClick={() => openDocumentInNewTab(soiFile)}
+                        className="px-2.5 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 text-[11px] font-sans font-semibold shrink-0 shadow-sm transition-colors"
                       >
                         Preview
-                      </a>
+                      </button>
                     )}
                   </div>
                 ) : (

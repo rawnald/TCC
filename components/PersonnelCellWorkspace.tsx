@@ -8,12 +8,15 @@ import {
   AFPOSBranch,
   PersonnelStatus,
   PersonnelRemarks,
+  UploadedDocumentFile,
   isUUID,
   generateUUID,
 } from '@/types/personnel';
 import { INITIAL_MILITARY_PROFILES } from '@/lib/personnelMockData';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 import PersonnelProfileModal from './PersonnelProfileModal';
+import DocumentViewerModal from './DocumentViewerModal';
+import { openDocumentInNewTab } from '@/lib/documentUtils';
 import {
   Users,
   UserCheck,
@@ -152,9 +155,14 @@ export default function PersonnelCellWorkspace({
   const [statusFilter, setStatusFilter] = useState('all');
   const [remarksFilter, setRemarksFilter] = useState('all');
 
-  // Modals state — Only PersonnelProfileModal
+  // Modals state — PersonnelProfileModal & DocumentViewerModal
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<MilitaryProfile | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<{
+    file: UploadedDocumentFile;
+    title: string;
+    categoryLabel: string;
+  } | null>(null);
 
   // Load from Supabase on mount & purge any legacy localStorage cache
   useEffect(() => {
@@ -849,27 +857,37 @@ NOTIFY pgrst, 'reload schema';`;
                       {/* Files Attached (Security Clearance & SOI) */}
                       <td className="py-3 px-3 text-center">
                         <div className="flex items-center justify-center space-x-1.5">
-                          {hasClearance && (
-                            <a
-                              href={p.security_clearance_file?.file_data || '#'}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-1 rounded bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
-                              title={`Security Clearance: ${p.security_clearance_file?.file_name}`}
+                          {hasClearance && p.security_clearance_file && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewDocument({
+                                  file: p.security_clearance_file!,
+                                  title: `Security Clearance — ${p.rank} ${p.last_name}, ${p.first_name}`,
+                                  categoryLabel: 'Security Clearance',
+                                })
+                              }
+                              className="p-1 rounded bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer"
+                              title={`View Security Clearance: ${p.security_clearance_file.file_name}`}
                             >
                               <Shield className="w-3.5 h-3.5" />
-                            </a>
+                            </button>
                           )}
-                          {hasSoi && (
-                            <a
-                              href={p.soi_file?.file_data || '#'}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-1 rounded bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors"
-                              title={`Summary of Information (SOI): ${p.soi_file?.file_name}`}
+                          {hasSoi && p.soi_file && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewDocument({
+                                  file: p.soi_file!,
+                                  title: `Summary of Information (SOI) — ${p.rank} ${p.last_name}, ${p.first_name}`,
+                                  categoryLabel: 'Summary of Information (SOI)',
+                                })
+                              }
+                              className="p-1 rounded bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors cursor-pointer"
+                              title={`View SOI: ${p.soi_file.file_name}`}
                             >
                               <FileText className="w-3.5 h-3.5" />
-                            </a>
+                            </button>
                           )}
                           {!hasClearance && !hasSoi && (
                             <span className="text-[11px] text-slate-400">None</span>
@@ -993,14 +1011,38 @@ NOTIFY pgrst, 'reload schema';`;
 
                   <div className="flex items-center space-x-1.5">
                     {p.security_clearance_file && (
-                      <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-semibold">
-                        Clearance
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewDocument({
+                            file: p.security_clearance_file!,
+                            title: `Security Clearance — ${p.rank} ${p.last_name}, ${p.first_name}`,
+                            categoryLabel: 'Security Clearance',
+                          })
+                        }
+                        className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-semibold hover:bg-blue-100 transition-colors flex items-center space-x-1 cursor-pointer"
+                        title={`View Security Clearance: ${p.security_clearance_file.file_name}`}
+                      >
+                        <Shield className="w-3 h-3" />
+                        <span>Clearance</span>
+                      </button>
                     )}
                     {p.soi_file && (
-                      <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-semibold">
-                        SOI PDF
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewDocument({
+                            file: p.soi_file!,
+                            title: `Summary of Information (SOI) — ${p.rank} ${p.last_name}, ${p.first_name}`,
+                            categoryLabel: 'Summary of Information (SOI)',
+                          })
+                        }
+                        className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-semibold hover:bg-slate-200 transition-colors flex items-center space-x-1 cursor-pointer"
+                        title={`View Summary of Information (SOI): ${p.soi_file.file_name}`}
+                      >
+                        <FileText className="w-3 h-3" />
+                        <span>SOI PDF</span>
+                      </button>
                     )}
                   </div>
                 </div>
@@ -1045,6 +1087,14 @@ NOTIFY pgrst, 'reload schema';`;
         onClose={() => setIsProfileModalOpen(false)}
         onSave={handleSaveProfile}
         initialProfile={editingProfile}
+      />
+
+      <DocumentViewerModal
+        isOpen={!!previewDocument}
+        onClose={() => setPreviewDocument(null)}
+        file={previewDocument?.file || null}
+        title={previewDocument?.title}
+        categoryLabel={previewDocument?.categoryLabel}
       />
     </div>
   );
