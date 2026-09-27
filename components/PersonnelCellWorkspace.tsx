@@ -8,6 +8,8 @@ import {
   AFPOSBranch,
   PersonnelStatus,
   PersonnelRemarks,
+  isUUID,
+  generateUUID,
 } from '@/types/personnel';
 import { INITIAL_MILITARY_PROFILES } from '@/lib/personnelMockData';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
@@ -233,7 +235,16 @@ export default function PersonnelCellWorkspace({
 
       if (directData && !directErr && directData.length > 0) {
         // Exclude enemy profiles, keep strictly friendly military profiles
-        const cleanProfiles = (directData as MilitaryProfile[]).filter((p) => !isEnemyProfileRecord(p));
+        const cleanProfiles = (directData as any[])
+          .filter((p) => !isEnemyProfileRecord(p))
+          .map((p) => ({
+            ...p,
+            contact_number: p.contact_number || p.mobile_number || '',
+            mobile_number: p.mobile_number || p.contact_number || '',
+            status_other: p.status_other || '',
+            remarks_other: p.remarks_other || '',
+            picture_url: p.picture_url || '',
+          }));
         setProfiles(cleanProfiles);
         setSyncStatus('Connected to public.personnel_profiles');
         setRlsNotice(null);
@@ -241,52 +252,7 @@ export default function PersonnelCellWorkspace({
         return;
       }
 
-      // 2. If dedicated table is empty or blocked by RLS, check 'records' table mirror (category='personnel')
-      const { data: recData, error: recErr } = await supabase
-        .from('records')
-        .select('*')
-        .eq('category', 'personnel')
-        .order('created_at', { ascending: false });
-
-      if (recData && !recErr && recData.length > 0) {
-        // Strictly filter out enemy / HVT records
-        const friendlyRecords = recData.filter((r: any) => !isEnemyProfileRecord(r));
-
-        if (friendlyRecords.length > 0) {
-          const mapped: MilitaryProfile[] = friendlyRecords.map((r: any) => {
-            const meta = r.metadata || {};
-            return {
-              id: r.id,
-              unit_office: meta.unit_office || r.location_name || '',
-              rank: meta.rank || 'SGT',
-              last_name: meta.last_name || r.title?.split(' ')[1] || r.title || '',
-              first_name: meta.first_name || r.title?.split(' ')[2] || '',
-              middle_name: meta.middle_name || '',
-              serial_number: meta.serial_number || r.code || '',
-              afpos: meta.afpos || 'INF',
-              designation: meta.designation || r.description || '',
-              contact_number: meta.contact_number || meta.mobile_number || '',
-              mobile_number: meta.mobile_number || meta.contact_number || '',
-              address: meta.address || r.location_name || '',
-              status: meta.status || (r.status === 'active' ? 'MWB' : 'Passes'),
-              status_other: meta.status_other,
-              remarks: meta.remarks || 'Active',
-              remarks_other: meta.remarks_other,
-              security_clearance_file: meta.security_clearance_file || null,
-              soi_file: meta.soi_file || null,
-              created_at: r.created_at,
-              updated_at: r.updated_at,
-            };
-          });
-
-          setProfiles(mapped);
-          setSyncStatus('Synced via Supabase records table');
-          setIsRefreshing(false);
-          return;
-        }
-      }
-
-      // 3. If no data exists in Supabase, strictly empty the table!
+      // If no data exists in Supabase, empty the table
       setProfiles([]);
     } catch (err: any) {
       console.warn('Error loading personnel profiles from Supabase:', err);
@@ -304,41 +270,48 @@ export default function PersonnelCellWorkspace({
 
   // Profile Save / Update Handler
   const handleSaveProfile = async (profileData: MilitaryProfile) => {
+    const validId = profileData.id && isUUID(profileData.id) ? profileData.id : generateUUID();
+    const updatedProfile = { ...profileData, id: validId };
+
     // 1. Update React state immediately
     setProfiles((prev) => {
-      const exists = prev.some((p) => p.id === profileData.id);
+      const exists = prev.some((p) => p.id === validId || p.id === profileData.id);
       return exists
-        ? prev.map((p) => (p.id === profileData.id ? profileData : p))
-        : [profileData, ...prev];
+        ? prev.map((p) => (p.id === validId || p.id === profileData.id ? updatedProfile : p))
+        : [updatedProfile, ...prev];
     });
 
-    // 2. Persist to Supabase
+    // 2. Persist to dedicated 'personnel_profiles' table in Supabase
     if (isSupabaseConfigured() && supabase) {
-      // A. Try inserting into dedicated 'personnel_profiles' table
+      const dbPayload = {
+        id: validId,
+        unit_office: profileData.unit_office,
+        rank: profileData.rank,
+        last_name: profileData.last_name,
+        first_name: profileData.first_name,
+        middle_name: profileData.middle_name || '',
+        serial_number: profileData.serial_number,
+        afpos: profileData.afpos,
+        designation: profileData.designation,
+        address: profileData.address || '',
+        contact_number: profileData.contact_number || profileData.mobile_number || '',
+        mobile_number: profileData.mobile_number || profileData.contact_number || '',
+        status: profileData.status,
+        status_other: profileData.status_other || '',
+        remarks: profileData.remarks,
+        remarks_other: profileData.remarks_other || '',
+        security_clearance_file: profileData.security_clearance_file || null,
+        soi_file: profileData.soi_file || null,
+        picture_url: profileData.picture_url || '',
+        created_at: profileData.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
       try {
-        const { error: sbErr } = await supabase.from('personnel_profiles').upsert({
-          id: profileData.id,
-          unit_office: profileData.unit_office,
-          rank: profileData.rank,
-          last_name: profileData.last_name,
-          first_name: profileData.first_name,
-          middle_name: profileData.middle_name || '',
-          serial_number: profileData.serial_number,
-          afpos: profileData.afpos,
-          designation: profileData.designation,
-          address: profileData.address || '',
-          contact_number: profileData.contact_number || profileData.mobile_number || '',
-          mobile_number: profileData.mobile_number || profileData.contact_number || '',
-          status: profileData.status,
-          remarks: profileData.remarks,
-          security_clearance_file: profileData.security_clearance_file || null,
-          soi_file: profileData.soi_file || null,
-          created_at: profileData.created_at || new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
+        const { error: sbErr } = await supabase.from('personnel_profiles').upsert(dbPayload);
 
         if (sbErr) {
-          console.warn('Direct personnel_profiles upsert note:', sbErr.message);
+          console.error('Direct personnel_profiles upsert note:', sbErr.message);
           if (sbErr.message?.includes('row-level security') || sbErr.code === '42501') {
             setRlsNotice(
               'Row-Level Security (RLS) is blocking writes on public.personnel_profiles in Supabase. Click "Copy Supabase SQL Fix" below and run it in your Supabase SQL Editor to enable full access.'
@@ -347,38 +320,19 @@ export default function PersonnelCellWorkspace({
         } else {
           setRlsNotice(null);
         }
+
+        // Clean up any historical mirror in records table so it does NOT linger with category 'personnel'
+        try {
+          await supabase.from('records').delete().or(`id.eq.${validId},code.eq.${profileData.serial_number}`);
+          if (profileData.id && profileData.id !== validId) {
+            await supabase.from('records').delete().eq('id', profileData.id);
+          }
+          if (onRefreshData) onRefreshData();
+        } catch (cleanErr) {
+          console.warn('Historical records cleanup notice:', cleanErr);
+        }
       } catch (err: any) {
-        console.warn('Direct personnel_profiles write notice:', err);
-      }
-
-      // B. ALSO mirror to standard 'records' table (category: 'personnel')
-      // This ensures 100% persistence regardless of table structure!
-      try {
-        const recordMirror: RecordItem = {
-          id: profileData.id,
-          code: profileData.serial_number || `SN-${profileData.id.slice(0, 6)}`,
-          title: `${profileData.rank} ${profileData.last_name}, ${profileData.first_name} ${profileData.middle_name || ''}`.trim(),
-          category: 'personnel',
-          description: `${profileData.designation} (${profileData.afpos}) — ${profileData.unit_office}`,
-          status: profileData.remarks === 'Active' ? 'active' : 'closed',
-          priority: profileData.status === 'Mission' ? 'high' : 'medium',
-          lat: 7.22,
-          lng: 124.24,
-          location_name: profileData.address || profileData.unit_office,
-          metadata: {
-            ...profileData,
-            intel_type: 'personnel_profile',
-            is_enemy_profile: false,
-            is_hostile: false,
-          },
-          created_at: profileData.created_at || new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-
-        await supabase.from('records').upsert([recordMirror]);
-        if (onRefreshData) onRefreshData();
-      } catch (err) {
-        console.warn('Records mirror write notice:', err);
+        console.error('Direct personnel_profiles write notice:', err);
       }
     }
   };

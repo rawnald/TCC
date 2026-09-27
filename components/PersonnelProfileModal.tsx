@@ -8,6 +8,8 @@ import {
   PersonnelStatus,
   PersonnelRemarks,
   UploadedDocumentFile,
+  isUUID,
+  generateUUID,
 } from '@/types/personnel';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 import {
@@ -33,17 +35,6 @@ interface PersonnelProfileModalProps {
   onSave: (profile: MilitaryProfile) => Promise<void> | void;
   initialProfile?: MilitaryProfile | null;
 }
-
-const generateUUID = (): string => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-};
 
 const RANKS: { value: MilitaryRank; label: string }[] = [
   { value: 'PVT', label: 'PVT — Private' },
@@ -335,9 +326,10 @@ export default function PersonnelProfileModal({
 
     const finalStatus = status === 'Others' ? customStatus.trim() || 'Others' : status;
     const finalRemarks = remarks === 'Others' ? customRemarks.trim() || 'Others' : remarks;
+    const finalId = initialProfile?.id && isUUID(initialProfile.id) ? initialProfile.id : generateUUID();
 
     const profilePayload: MilitaryProfile = {
-      id: initialProfile?.id || generateUUID(),
+      id: finalId,
       unit_office: finalUnit,
       rank,
       last_name: lastName.trim(),
@@ -366,6 +358,46 @@ export default function PersonnelProfileModal({
     setIsSaving(true);
 
     try {
+      if (isSupabaseConfigured() && supabase) {
+        const dbPayload = {
+          id: finalId,
+          unit_office: finalUnit,
+          rank,
+          last_name: lastName.trim(),
+          first_name: firstName.trim(),
+          middle_name: middleName.trim() || '',
+          serial_number: serialNumber.trim(),
+          afpos,
+          designation: designation.trim(),
+          address: address.trim() || '',
+          contact_number: contactNumber.trim() || '',
+          mobile_number: contactNumber.trim() || '',
+          status: finalStatus,
+          status_other: status === 'Others' ? customStatus.trim() : '',
+          remarks: finalRemarks,
+          remarks_other: remarks === 'Others' ? customRemarks.trim() : '',
+          security_clearance_file: clearanceFile || null,
+          soi_file: soiFile || null,
+          picture_url: initialProfile?.picture_url || '',
+          created_at: initialProfile?.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error: sbErr } = await supabase.from('personnel_profiles').upsert(dbPayload);
+        if (sbErr) {
+          console.error('Direct personnel_profiles save error:', sbErr);
+          throw new Error(`Failed to save to personnel_profiles: ${sbErr.message}`);
+        }
+
+        // Clean up any historical mirror in records table so it does NOT linger with category 'personnel'
+        try {
+          await supabase.from('records').delete().or(`id.eq.${finalId},code.eq.${serialNumber.trim()}`);
+          if (initialProfile?.id && initialProfile.id !== finalId) {
+            await supabase.from('records').delete().eq('id', initialProfile.id);
+          }
+        } catch {}
+      }
+
       await onSave(profilePayload);
       setIsSaving(false);
       onClose();

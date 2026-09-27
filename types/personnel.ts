@@ -83,6 +83,7 @@ export interface MilitaryProfile {
   remarks_other?: string;
   security_clearance_file?: UploadedDocumentFile | null;
   soi_file?: UploadedDocumentFile | null;
+  picture_url?: string;
   created_at?: string;
   updated_at?: string;
   // Legacy / extra compat fields
@@ -100,3 +101,19 @@ export interface MilitaryProfile {
   attached_files?: any[];
   status_logs?: any[];
 }
+
+export const isUUID = (str?: string | null): boolean => {
+  if (!str) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+};
+
+export const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
