@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { RecordItem, RecordCategory, RecordStatus, RecordPriority } from '@/types';
+import { RecordItem, RecordCategory } from '@/types';
 import {
   PersonnelTab,
   MilitaryProfile,
@@ -10,6 +10,8 @@ import {
   PersonnelStatus,
   PersonnelRemarks,
   UploadedDocumentFile,
+  DLTRecord,
+  DLTStatus,
   isUUID,
   generateUUID,
 } from '@/types/personnel';
@@ -17,9 +19,7 @@ import { INITIAL_MILITARY_PROFILES } from '@/lib/personnelMockData';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 import PersonnelProfileModal from './PersonnelProfileModal';
 import DocumentViewerModal from './DocumentViewerModal';
-import ForceUnitModal, { ForceUnit } from './ForceUnitModal';
-import TacticalMap from './TacticalMap';
-import { toMGRS, parseMGRSToCoords, PRESET_AREA_COORDS } from '@/lib/mgrsUtils';
+import DLTRecordModal from './DLTRecordModal';
 import {
   Users,
   UserCheck,
@@ -47,7 +47,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   ChevronDown,
-  ChevronUp,
   Layers,
   LayoutGrid,
   Table,
@@ -58,12 +57,8 @@ import {
   Database,
   Phone,
   Compass,
-  Navigation,
-  Truck,
-  Plane,
-  Anchor,
   Radio,
-  Map,
+  Calendar,
 } from 'lucide-react';
 
 interface PersonnelCellWorkspaceProps {
@@ -78,144 +73,11 @@ interface PersonnelCellWorkspaceProps {
 }
 
 /**
- * Initial fallback tactical force units for Central Mindanao / 6ID AOR.
- * Populated if neither Supabase nor localStorage contains force units yet.
+ * Default fallback — empty for new DLT schema.
+ * Records are added via the "Add DLT Record" modal and saved to Supabase.
  */
-export const DEFAULT_DLT_FORCE_UNITS: ForceUnit[] = [
-  {
-    id: 'fu-601st-bde',
-    battalion: '601st Infantry (Unifier) Brigade HQ',
-    brigade: '6th Infantry Division',
-    area: 'Sultan Kudarat',
-    mgrs: '51NXH7821034500',
-    logo_url: '',
-    afp_officers: 28,
-    afp_enlisted: 185,
-    caa: 45,
-    wavs_tavs: 4,
-    air_assets: 0,
-    vehicle: 18,
-    naval_assets: 0,
-    isr_asset: 2,
-    artillery_asset: 0,
-    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'fu-602nd-bde',
-    battalion: '602nd Infantry (Liberator) Brigade HQ',
-    brigade: '6th Infantry Division',
-    area: 'Cotabato',
-    mgrs: '51NXH9120054300',
-    logo_url: '',
-    afp_officers: 24,
-    afp_enlisted: 170,
-    caa: 50,
-    wavs_tavs: 4,
-    air_assets: 0,
-    vehicle: 16,
-    naval_assets: 0,
-    isr_asset: 1,
-    artillery_asset: 0,
-    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'fu-603rd-bde',
-    battalion: '603rd Infantry (Radical) Brigade HQ',
-    brigade: '6th Infantry Division',
-    area: 'Maguindanao del Norte',
-    mgrs: '51NXH6543087650',
-    logo_url: '',
-    afp_officers: 26,
-    afp_enlisted: 190,
-    caa: 60,
-    wavs_tavs: 6,
-    air_assets: 0,
-    vehicle: 20,
-    naval_assets: 1,
-    isr_asset: 2,
-    artillery_asset: 0,
-    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'fu-6th-ib',
-    battalion: '6th Infantry (Redskin) Battalion',
-    brigade: '601st Infantry Brigade',
-    area: 'Maguindanao del Sur',
-    mgrs: '51NXH6659745322',
-    logo_url: '',
-    afp_officers: 32,
-    afp_enlisted: 410,
-    caa: 120,
-    wavs_tavs: 8,
-    air_assets: 0,
-    vehicle: 24,
-    naval_assets: 0,
-    isr_asset: 1,
-    artillery_asset: 2,
-    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'fu-7th-ib',
-    battalion: '7th Infantry (Tapat) Battalion',
-    brigade: '602nd Infantry Brigade',
-    area: 'Cotabato',
-    mgrs: '51NXH8234065430',
-    logo_url: '',
-    afp_officers: 30,
-    afp_enlisted: 395,
-    caa: 110,
-    wavs_tavs: 6,
-    air_assets: 0,
-    vehicle: 22,
-    naval_assets: 0,
-    isr_asset: 1,
-    artillery_asset: 2,
-    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'fu-33rd-ib',
-    battalion: '33rd Infantry (Makabayan) Battalion',
-    brigade: '601st Infantry Brigade',
-    area: 'Sultan Kudarat',
-    mgrs: '51NXH7432029870',
-    logo_url: '',
-    afp_officers: 31,
-    afp_enlisted: 405,
-    caa: 115,
-    wavs_tavs: 6,
-    air_assets: 0,
-    vehicle: 25,
-    naval_assets: 0,
-    isr_asset: 1,
-    artillery_asset: 0,
-    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'fu-6th-fab',
-    battalion: '6th Field Artillery Battalion',
-    brigade: '6th Infantry Division',
-    area: 'Maguindanao del Norte',
-    mgrs: '51NXH6432098760',
-    logo_url: '',
-    afp_officers: 22,
-    afp_enlisted: 280,
-    caa: 40,
-    wavs_tavs: 4,
-    air_assets: 0,
-    vehicle: 28,
-    naval_assets: 0,
-    isr_asset: 1,
-    artillery_asset: 18,
-    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
+export const DEFAULT_DLT_RECORDS: DLTRecord[] = [];
+
 
 /**
  * Helper to identify enemy/HVT/threat profile records and strictly
@@ -293,32 +155,25 @@ export default function PersonnelCellWorkspace({
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [rlsNotice, setRlsNotice] = useState<string | null>(null);
 
-  // ── DLT (Disposition & Location of Troops) States ───────────────────────────
-  const [forceUnits, setForceUnits] = useState<ForceUnit[]>(() => {
+  // ── Dedicated DLT (Disposition & Location of Troops) States ────────────────
+  const [dltRecords, setDltRecords] = useState<DLTRecord[]>(() => {
     if (typeof window === 'undefined') return [];
     try {
-      const stored = localStorage.getItem('force_units');
-      const parsed: ForceUnit[] = stored ? JSON.parse(stored) : [];
-      const logoCache = JSON.parse(localStorage.getItem('tactical_unit_logos') || '{}');
-      if (parsed && parsed.length > 0) {
-        return parsed.map((u) => ({
-          ...u,
-          logo_url: u.logo_url || logoCache[u.id] || (u.battalion ? logoCache[u.battalion] : '') || '',
-        }));
-      }
-      return DEFAULT_DLT_FORCE_UNITS;
+      const stored = localStorage.getItem('personnel_dlt_records');
+      const parsed: DLTRecord[] = stored ? JSON.parse(stored) : [];
+      if (parsed && parsed.length > 0) return parsed;
+      return DEFAULT_DLT_RECORDS;
     } catch {
-      return DEFAULT_DLT_FORCE_UNITS;
+      return DEFAULT_DLT_RECORDS;
     }
   });
 
   const [dltViewMode, setDltViewMode] = useState<'table' | 'cards'>('table');
   const [dltSearchQuery, setDltSearchQuery] = useState('');
-  const [dltBrigadeFilter, setDltBrigadeFilter] = useState('all');
-  const [dltAreaFilter, setDltAreaFilter] = useState('all');
-  const [showTacticalMap, setShowTacticalMap] = useState(true);
-  const [isForceModalOpen, setIsForceModalOpen] = useState(false);
-  const [editingForceUnit, setEditingForceUnit] = useState<ForceUnit | null>(null);
+  const [dltStatusFilter, setDltStatusFilter] = useState('all');
+  const [isDltModalOpen, setIsDltModalOpen] = useState(false);
+  const [editingDltRecord, setEditingDltRecord] = useState<DLTRecord | null>(null);
+
 
   // ── Personnel Profiles States ──────────────────────────────────────────────
   const [profiles, setProfiles] = useState<MilitaryProfile[]>([]);
@@ -346,16 +201,6 @@ export default function PersonnelCellWorkspace({
       localStorage.setItem(key, value);
     } catch (e) {
       console.warn(`[Storage] QuotaExceededError writing key "${key}". Running recovery...`);
-      try {
-        if (key === 'force_units') {
-          const parsed = JSON.parse(value);
-          const slim = parsed.map((u: any) => ({
-            ...u,
-            logo_url: typeof u.logo_url === 'string' && u.logo_url.startsWith('data:') ? '' : u.logo_url,
-          }));
-          localStorage.setItem(key, JSON.stringify(slim));
-        }
-      } catch {}
     }
   };
 
@@ -367,7 +212,7 @@ export default function PersonnelCellWorkspace({
     loadAllData();
   }, []);
 
-  // ── Realtime Subscriptions for public.personnel_profiles and public.force_units
+  // ── Realtime Subscriptions for public.personnel_profiles & public.personnel_dlt
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabase) return;
 
@@ -406,29 +251,29 @@ export default function PersonnelCellWorkspace({
       )
       .subscribe();
 
-    // 2. Force Units (DLT) Realtime
-    const forceUnitChannel = supabase
-      .channel('dlt-force-units-realtime')
+    // 2. DLT Realtime (public.personnel_dlt)
+    const dltChannel = supabase
+      .channel('personnel-dlt-realtime')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'force_units' },
+        { event: '*', schema: 'public', table: 'personnel_dlt' },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            const newRow = payload.new as ForceUnit;
-            setForceUnits((prev) => {
-              if (prev.some((u) => u.id === newRow.id)) {
-                return prev.map((u) => (u.id === newRow.id ? newRow : u));
+            const newRow = payload.new as DLTRecord;
+            setDltRecords((prev) => {
+              if (prev.some((d) => d.id === newRow.id)) {
+                return prev.map((d) => (d.id === newRow.id ? newRow : d));
               }
               return [newRow, ...prev];
             });
           } else if (payload.eventType === 'UPDATE') {
-            const updated = payload.new as ForceUnit;
-            setForceUnits((prev) =>
-              prev.map((u) => (u.id === updated.id ? updated : u))
+            const updated = payload.new as DLTRecord;
+            setDltRecords((prev) =>
+              prev.map((d) => (d.id === updated.id ? updated : d))
             );
           } else if (payload.eventType === 'DELETE') {
             const deletedId = (payload.old as { id: string }).id;
-            setForceUnits((prev) => prev.filter((u) => u.id !== deletedId));
+            setDltRecords((prev) => prev.filter((d) => d.id !== deletedId));
           }
         }
       )
@@ -442,13 +287,13 @@ export default function PersonnelCellWorkspace({
     return () => {
       window.removeEventListener('focus', handleFocus);
       supabase?.removeChannel(profileChannel);
-      supabase?.removeChannel(forceUnitChannel);
+      supabase?.removeChannel(dltChannel);
     };
   }, []);
 
   const loadAllData = async () => {
     setIsRefreshing(true);
-    await Promise.all([loadPersonnelProfiles(), loadForceUnits()]);
+    await Promise.all([loadPersonnelProfiles(), loadDltRecords()]);
     setIsRefreshing(false);
   };
 
@@ -483,7 +328,7 @@ export default function PersonnelCellWorkspace({
             picture_url: p.picture_url || '',
           }));
         setProfiles(cleanProfiles);
-        setSyncStatus('Connected to public.personnel_profiles');
+        setSyncStatus('Connected to Supabase');
         setRlsNotice(null);
         return;
       }
@@ -495,49 +340,53 @@ export default function PersonnelCellWorkspace({
     }
   };
 
-  // ── Load Force Units (DLT) ─────────────────────────────────────────────────
-  const loadForceUnits = async () => {
+  // ── Load Dedicated DLT Records (public.personnel_dlt) ──────────────────────
+  const loadDltRecords = async () => {
     if (!isSupabaseConfigured() || !supabase) {
       try {
-        const stored = localStorage.getItem('force_units');
+        const stored = localStorage.getItem('personnel_dlt_records');
         if (stored) {
           const parsed = JSON.parse(stored);
           if (parsed && parsed.length > 0) {
-            setForceUnits(parsed);
+            setDltRecords(parsed);
             return;
           }
         }
       } catch {}
-      setForceUnits(DEFAULT_DLT_FORCE_UNITS);
+      setDltRecords(DEFAULT_DLT_RECORDS);
       return;
     }
 
     try {
       const { data, error } = await supabase
-        .from('force_units')
+        .from('personnel_dlt')
         .select('*')
         .order('created_at', { ascending: false });
 
+      if (error) {
+        console.warn('Supabase personnel_dlt table query notice:', error.message);
+        if (error.message?.includes('does not exist') || error.code === '42P01') {
+          setRlsNotice(
+            'Table "public.personnel_dlt" does not exist yet in Supabase. Click "Copy Supabase SQL Fix" below to copy the schema migration and run it in your Supabase SQL Editor.'
+          );
+        }
+      }
+
       if (data && !error && data.length > 0) {
-        const logoCache = JSON.parse(localStorage.getItem('tactical_unit_logos') || '{}');
-        const enriched: ForceUnit[] = data.map((u: any) => ({
-          ...u,
-          logo_url: u.logo_url || logoCache[u.id] || (u.battalion ? logoCache[u.battalion] : '') || '',
-        }));
-        setForceUnits(enriched);
-        safeLocalStorageSet('force_units', JSON.stringify(enriched));
+        setDltRecords(data as DLTRecord[]);
+        safeLocalStorageSet('personnel_dlt_records', JSON.stringify(data));
       } else {
-        const stored = localStorage.getItem('force_units');
+        const stored = localStorage.getItem('personnel_dlt_records');
         if (stored) {
           const parsed = JSON.parse(stored);
-          if (parsed && parsed.length > 0) setForceUnits(parsed);
-          else setForceUnits(DEFAULT_DLT_FORCE_UNITS);
+          if (parsed && parsed.length > 0) setDltRecords(parsed);
+          else setDltRecords(DEFAULT_DLT_RECORDS);
         } else {
-          setForceUnits(DEFAULT_DLT_FORCE_UNITS);
+          setDltRecords(DEFAULT_DLT_RECORDS);
         }
       }
     } catch (err) {
-      console.warn('Error loading force_units from Supabase:', err);
+      console.warn('Error loading personnel_dlt from Supabase:', err);
     }
   };
 
@@ -547,51 +396,38 @@ export default function PersonnelCellWorkspace({
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  // ── DLT Unit Save / Update Handler ─────────────────────────────────────────
-  const handleSaveForceUnit = async (unit: ForceUnit) => {
-    const isEdit = forceUnits.some((u) => u.id === unit.id);
+  // ── DLT Record Save / Update Handler ───────────────────────────────────────
+  const handleSaveDltRecord = async (record: DLTRecord) => {
+    const isEdit = dltRecords.some((d) => d.id === record.id);
     const updated = isEdit
-      ? forceUnits.map((u) => (u.id === unit.id ? unit : u))
-      : [unit, ...forceUnits];
-    setForceUnits(updated);
-    safeLocalStorageSet('force_units', JSON.stringify(updated));
-
-    if (unit.logo_url) {
-      try {
-        const rawCache = localStorage.getItem('tactical_unit_logos');
-        const logoCache = rawCache ? JSON.parse(rawCache) : {};
-        logoCache[unit.id] = unit.logo_url;
-        if (unit.battalion && unit.battalion !== unit.id) {
-          logoCache[unit.battalion] = unit.id;
-        }
-        safeLocalStorageSet('tactical_unit_logos', JSON.stringify(logoCache));
-      } catch {}
-    }
+      ? dltRecords.map((d) => (d.id === record.id ? record : d))
+      : [record, ...dltRecords];
+    setDltRecords(updated);
+    safeLocalStorageSet('personnel_dlt_records', JSON.stringify(updated));
 
     if (isSupabaseConfigured() && supabase) {
       try {
-        const { error } = await supabase.from('force_units').upsert([unit]);
+        const { error } = await supabase.from('personnel_dlt').upsert([record]);
         if (error) {
-          const { logo_url, ...cleanUnit } = unit;
-          await supabase.from('force_units').upsert([cleanUnit]);
+          console.warn('Supabase personnel_dlt upsert notice:', error.message);
         }
         if (onRefreshData) onRefreshData();
       } catch (err) {
-        console.warn('Supabase force_units sync exception:', err);
+        console.warn('Supabase personnel_dlt sync exception:', err);
       }
     }
   };
 
-  // ── DLT Unit Delete Handler ────────────────────────────────────────────────
-  const handleDeleteForceUnit = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this troop unit disposition?')) return;
-    const updated = forceUnits.filter((u) => u.id !== id);
-    setForceUnits(updated);
-    safeLocalStorageSet('force_units', JSON.stringify(updated));
+  // ── DLT Record Delete Handler ──────────────────────────────────────────────
+  const handleDeleteDltRecord = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this troop disposition record?')) return;
+    const updated = dltRecords.filter((d) => d.id !== id);
+    setDltRecords(updated);
+    safeLocalStorageSet('personnel_dlt_records', JSON.stringify(updated));
 
     if (isSupabaseConfigured() && supabase) {
       try {
-        await supabase.from('force_units').delete().eq('id', id);
+        await supabase.from('personnel_dlt').delete().eq('id', id);
         if (onRefreshData) onRefreshData();
       } catch {}
     }
@@ -681,7 +517,7 @@ export default function PersonnelCellWorkspace({
     }
   };
 
-  // ── Computed Safe friendly military profiles only ──────────────────────────
+  // Safe friendly military profiles only
   const friendlyProfiles = useMemo(() => {
     return profiles.filter((p) => !isEnemyProfileRecord(p));
   }, [profiles]);
@@ -698,131 +534,89 @@ export default function PersonnelCellWorkspace({
     return map;
   }, [friendlyProfiles]);
 
-  // ── DLT Computed Metrics ───────────────────────────────────────────────────
-  const dltMetrics = useMemo(() => {
-    const totalUnits = forceUnits.length;
-    const officers = forceUnits.reduce((s, u) => s + (u.afp_officers || 0), 0);
-    const enlisted = forceUnits.reduce((s, u) => s + (u.afp_enlisted || 0), 0);
-    const caa = forceUnits.reduce((s, u) => s + (u.caa || 0), 0);
-    const totalTroops = officers + enlisted + caa;
-    const regularTroops = officers + enlisted;
-    const wavsTavs = forceUnits.reduce((s, u) => s + (u.wavs_tavs || 0), 0);
-    const vehicles = forceUnits.reduce((s, u) => s + (u.vehicle || 0), 0);
-    const air = forceUnits.reduce((s, u) => s + (u.air_assets || 0), 0);
-    const naval = forceUnits.reduce((s, u) => s + (u.naval_assets || 0), 0);
-    const isr = forceUnits.reduce((s, u) => s + (u.isr_asset || 0), 0);
-    const artillery = forceUnits.reduce((s, u) => s + (u.artillery_asset || 0), 0);
-    const totalAssets = wavsTavs + vehicles + air + naval + isr + artillery;
-
-    return {
-      totalUnits,
-      officers,
-      enlisted,
-      caa,
-      totalTroops,
-      regularTroops,
-      wavsTavs,
-      vehicles,
-      air,
-      naval,
-      isr,
-      artillery,
-      totalAssets,
-    };
-  }, [forceUnits]);
-
-  // ── DLT Filter Options ─────────────────────────────────────────────────────
-  const dltBrigadeOptions = useMemo(() => {
-    const set = new Set<string>();
-    forceUnits.forEach((u) => {
-      if (u.brigade) set.add(u.brigade.trim());
-    });
-    return Array.from(set).sort();
-  }, [forceUnits]);
-
-  const dltAreaOptions = useMemo(() => {
-    const set = new Set<string>();
-    forceUnits.forEach((u) => {
-      if (u.area) set.add(u.area.trim());
-    });
-    return Array.from(set).sort();
-  }, [forceUnits]);
-
-  const filteredForceUnits = useMemo(() => {
-    return forceUnits.filter((u) => {
+  // ── DLT Filter Options & Filtered Records ───────────────────────────────────
+  const filteredDltRecords = useMemo(() => {
+    return dltRecords.filter((d) => {
       const q = dltSearchQuery.toLowerCase().trim();
       const matchesSearch =
         !q ||
-        (u.battalion && u.battalion.toLowerCase().includes(q)) ||
-        (u.brigade && u.brigade.toLowerCase().includes(q)) ||
-        (u.area && u.area.toLowerCase().includes(q)) ||
-        (u.mgrs && u.mgrs.toLowerCase().includes(q));
+        (d.name && d.name.toLowerCase().includes(q)) ||
+        (d.rank && d.rank.toLowerCase().includes(q)) ||
+        (d.serial_number && d.serial_number.toLowerCase().includes(q)) ||
+        (d.afpos && d.afpos.toLowerCase().includes(q)) ||
+        (d.branch_of_service && d.branch_of_service.toLowerCase().includes(q)) ||
+        (d.designation && d.designation.toLowerCase().includes(q)) ||
+        (d.unit_name && d.unit_name.toLowerCase().includes(q)) ||
+        (d.location && d.location.toLowerCase().includes(q)) ||
+        (d.mgrs && d.mgrs.toLowerCase().includes(q)) ||
+        (d.contact_number && d.contact_number.toLowerCase().includes(q)) ||
+        (d.status && d.status.toLowerCase().includes(q));
 
-      const matchesBrigade = dltBrigadeFilter === 'all' || u.brigade === dltBrigadeFilter;
-      const matchesArea = dltAreaFilter === 'all' || u.area === dltAreaFilter;
+      const matchesStatus = dltStatusFilter === 'all' || d.status === dltStatusFilter;
 
-      return matchesSearch && matchesBrigade && matchesArea;
+      return matchesSearch && matchesStatus;
     });
-  }, [forceUnits, dltSearchQuery, dltBrigadeFilter, dltAreaFilter]);
+  }, [dltRecords, dltSearchQuery, dltStatusFilter]);
 
-  // ── DLT Tactical Map Records ───────────────────────────────────────────────
-  const dltMapRecords: RecordItem[] = useMemo(() => {
-    return filteredForceUnits.map((u) => {
-      let lat = 7.0167;
-      let lng = 124.5;
-      if (u.mgrs) {
-        const coords = parseMGRSToCoords(u.mgrs);
-        if (coords) {
-          lat = coords[0];
-          lng = coords[1];
-        }
-      } else if (u.area && PRESET_AREA_COORDS[u.area]) {
-        lat = PRESET_AREA_COORDS[u.area][0];
-        lng = PRESET_AREA_COORDS[u.area][1];
-      }
+  // ── DLT Reactive Summary (based on filteredDltRecords) ───────────────────
+  const dltSummary = useMemo(() => {
+    const totalOfficers = filteredDltRecords.reduce((s, d) => s + (d.officers_count || 0), 0);
+    const totalEP = filteredDltRecords.reduce((s, d) => s + (d.ep_count || 0), 0);
+    const totalCAA = filteredDltRecords.reduce((s, d) => s + (d.caa_count || 0), 0);
+    const totalCE = filteredDltRecords.reduce((s, d) => s + (d.ce_count || 0), 0);
+    const totalStrength = totalOfficers + totalEP + totalCAA + totalCE;
 
-      const totalTroops = (u.afp_officers || 0) + (u.afp_enlisted || 0) + (u.caa || 0);
+    const organicRecords = filteredDltRecords.filter((d) => d.status === 'Organic');
+    const opconRecords = filteredDltRecords.filter((d) => d.status === 'Opcon');
 
-      return {
-        id: `fu-${u.id}`,
-        code: u.battalion || 'UNIT',
-        title: `${u.battalion} (${u.brigade})`,
-        category: 'units' as RecordCategory,
-        status: 'active' as RecordStatus,
-        priority: 'medium' as RecordPriority,
-        lat,
-        lng,
-        location_name: u.area || 'AOR Station',
-        description: `Force Disposition: ${u.battalion} / ${u.brigade}. Total Troops: ${totalTroops} (Officers: ${u.afp_officers || 0}, Enlisted: ${u.afp_enlisted || 0}, CAA: ${u.caa || 0}). Mobility/Assets: WAVs/TAVs: ${u.wavs_tavs || 0}, Vehicles: ${u.vehicle || 0}, Artillery: ${u.artillery_asset || 0}, ISR: ${u.isr_asset || 0}`,
-        metadata: {
-          mgrs: u.mgrs || (u.area && PRESET_AREA_COORDS[u.area] ? toMGRS(PRESET_AREA_COORDS[u.area][0], PRESET_AREA_COORDS[u.area][1]) : ''),
-          is_force_unit: true,
-          battalion: u.battalion,
-          brigade: u.brigade,
-          area: u.area,
-          afp_officers: u.afp_officers,
-          afp_enlisted: u.afp_enlisted,
-          caa: u.caa,
-          logo_url: u.logo_url,
-        },
-        created_at: u.created_at || new Date().toISOString(),
-        updated_at: u.updated_at || new Date().toISOString(),
-      };
-    });
-  }, [filteredForceUnits]);
+    const totalOrganicStrength = organicRecords.reduce(
+      (s, d) => s + (d.officers_count || 0) + (d.ep_count || 0) + (d.caa_count || 0) + (d.ce_count || 0),
+      0
+    );
+    const totalOpconStrength = opconRecords.reduce(
+      (s, d) => s + (d.officers_count || 0) + (d.ep_count || 0) + (d.caa_count || 0) + (d.ce_count || 0),
+      0
+    );
+
+    return {
+      totalOfficers,
+      totalEP,
+      totalCAA,
+      totalCE,
+      totalStrength,
+      totalOrganicUnits: organicRecords.length,
+      totalOpconUnits: opconRecords.length,
+      totalOrganicStrength,
+      totalOpconStrength,
+    };
+  }, [filteredDltRecords]);
+
+  // DLT Status Badge Helper
+  const getDltStatusBadge = (st: string) => {
+    switch (st) {
+      case 'Organic':
+        return { label: 'ORGANIC', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' };
+      case 'Opcon':
+        return { label: 'OPCON', color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200' };
+      default:
+        return { label: st || '—', color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' };
+    }
+  };
+
+
 
   // ── Personnel Profiles Filter Options ──────────────────────────────────────
   const unitOptions = useMemo(() => {
     const set = new Set<string>();
-    forceUnits.forEach((u) => {
-      if (u.battalion) set.add(u.battalion.trim());
+    dltRecords.forEach((d) => {
+      if (d.unit_name) set.add(d.unit_name.trim());
     });
     friendlyProfiles.forEach((p) => {
       const u = p.unit_office || p.assigned_unit;
       if (u) set.add(u.trim());
     });
     return Array.from(set).sort();
-  }, [forceUnits, friendlyProfiles]);
+  }, [dltRecords, friendlyProfiles]);
 
   const filteredProfiles = useMemo(() => {
     return friendlyProfiles.filter((p) => {
@@ -936,7 +730,7 @@ export default function PersonnelCellWorkspace({
               </div>
               <p className="text-xs font-sans text-slate-500 mt-0.5">
                 {activeTab === 'dlt'
-                  ? 'Battalion stations, brigade hierarchy, MGRS grid coordinates, troop strength breakdown & organic mobility assets.'
+                  ? 'Command force disposition, station outposts, MGRS grid coordinates, PERSTAT troop strength & tactical missions.'
                   : 'Individual service member accountability, assigned billets, AFPOS branches, duty status & security clearances.'}
               </p>
             </div>
@@ -947,13 +741,13 @@ export default function PersonnelCellWorkspace({
             {activeTab === 'dlt' ? (
               <button
                 onClick={() => {
-                  setEditingForceUnit(null);
-                  setIsForceModalOpen(true);
+                  setEditingDltRecord(null);
+                  setIsDltModalOpen(true);
                 }}
                 className="flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-sans font-semibold transition-all shadow-sm active:scale-95 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                <span>Add Unit / Troop Disposition</span>
+                <span>Add Troop Disposition (DLT)</span>
               </button>
             ) : (
               <button
@@ -1010,7 +804,7 @@ export default function PersonnelCellWorkspace({
                 : 'bg-blue-50 text-blue-700 border border-blue-200'
             }`}
           >
-            {forceUnits.length} Units
+            {dltRecords.length} Stations
           </span>
         </button>
 
@@ -1037,55 +831,57 @@ export default function PersonnelCellWorkspace({
         </button>
       </div>
 
-      {/* Supabase Row-Level Security (RLS) Warning Banner */}
+      {/* Supabase Notice Banner / SQL Setup Helper */}
       {rlsNotice && (
         <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-sans">
           <div className="flex items-start space-x-2.5 text-slate-800">
             <AlertTriangle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold text-slate-900">Supabase RLS Notice: </span>
+              <span className="font-bold text-slate-900">Supabase Notice: </span>
               <span className="text-slate-600">{rlsNotice}</span>
             </div>
           </div>
           <button
             onClick={() => {
-              const sql = `-- Run this in your Supabase SQL Editor to enable full client access:
-ALTER TABLE public.personnel_profiles ENABLE ROW LEVEL SECURITY;
+              const sql = `-- Run this in your Supabase SQL Editor (new DLT schema):
+CREATE TABLE IF NOT EXISTS public.personnel_dlt (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  rank               TEXT NOT NULL DEFAULT 'MAJ',
+  name               TEXT NOT NULL,
+  serial_number      TEXT NOT NULL DEFAULT '',
+  afpos              TEXT NOT NULL DEFAULT 'INF',
+  branch_of_service  TEXT NOT NULL DEFAULT 'PA',
+  designation        TEXT NOT NULL DEFAULT '',
+  unit_id            TEXT DEFAULT NULL,
+  unit_name          TEXT NOT NULL DEFAULT '',
+  location           TEXT NOT NULL DEFAULT '',
+  mgrs               TEXT DEFAULT '',
+  contact_number     TEXT DEFAULT '',
+  officers_count     INTEGER NOT NULL DEFAULT 0,
+  ep_count           INTEGER NOT NULL DEFAULT 0,
+  caa_count          INTEGER NOT NULL DEFAULT 0,
+  ce_count           INTEGER NOT NULL DEFAULT 0,
+  date_assumption    DATE NOT NULL DEFAULT CURRENT_DATE,
+  status             TEXT NOT NULL DEFAULT 'Organic',
+  created_at         TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  updated_at         TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
 
-DROP POLICY IF EXISTS "Allow all operations on personnel_profiles" ON public.personnel_profiles;
-DROP POLICY IF EXISTS "Enable all access for all users" ON public.personnel_profiles;
+ALTER TABLE public.personnel_dlt ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all operations on personnel_dlt" ON public.personnel_dlt;
+CREATE POLICY "Allow all operations on personnel_dlt" ON public.personnel_dlt FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 
-CREATE POLICY "Allow all operations on personnel_profiles"
-ON public.personnel_profiles
-FOR ALL
-TO anon, authenticated, public
-USING (true)
-WITH CHECK (true);
-
-ALTER TABLE public.force_units ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all operations on force_units" ON public.force_units;
-CREATE POLICY "Allow all operations on force_units"
-ON public.force_units FOR ALL TO anon, authenticated, public
-USING (true) WITH CHECK (true);
-
-DO $$ 
-BEGIN 
-  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN 
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.personnel_profiles; 
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.force_units; 
-  END IF; 
-EXCEPTION WHEN duplicate_object THEN null; 
-END $$;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN ALTER PUBLICATION supabase_realtime ADD TABLE public.personnel_dlt; END IF; EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 NOTIFY pgrst, 'reload schema';`;
               navigator.clipboard.writeText(sql);
-              setCopiedKey('sql-rls');
+              setCopiedKey('sql-dlt');
               setTimeout(() => setCopiedKey(null), 3000);
             }}
             className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-all shrink-0 active:scale-95 shadow-sm cursor-pointer"
           >
-            {copiedKey === 'sql-rls' ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copiedKey === 'sql-rls' ? 'SQL Copied!' : 'Copy Supabase SQL Fix'}</span>
+            {copiedKey === 'sql-dlt' ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copiedKey === 'sql-dlt' ? 'SQL Copied!' : 'Copy DLT Supabase SQL'}</span>
           </button>
         </div>
       )}
@@ -1095,91 +891,68 @@ NOTIFY pgrst, 'reload schema';`;
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'dlt' && (
         <div className="space-y-4">
-          {/* DLT Force Status Metric Tiles */}
+
+          {/* ── DLT Reactive Summary Tiles (update with every search/filter) ── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            {/* Tile 1: Total Strength Breakdown */}
+            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm col-span-2 lg:col-span-2">
+              <div className="text-[11px] font-sans font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                Total Troops Strength
+              </div>
+              <div className="flex items-end space-x-4">
+                <div className="text-center">
+                  <div className="text-2xl font-sans font-bold text-blue-700">{dltSummary.totalStrength.toLocaleString()}</div>
+                  <div className="text-[10px] text-slate-400 font-semibold uppercase mt-0.5">Total</div>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="text-center px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200">
+                    <div className="text-sm font-bold text-blue-700">{dltSummary.totalOfficers}</div>
+                    <div className="text-[10px] text-slate-500 uppercase font-semibold">Officer</div>
+                  </div>
+                  <div className="text-center px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200">
+                    <div className="text-sm font-bold text-slate-700">{dltSummary.totalEP}</div>
+                    <div className="text-[10px] text-slate-500 uppercase font-semibold">EP</div>
+                  </div>
+                  <div className="text-center px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200">
+                    <div className="text-sm font-bold text-amber-700">{dltSummary.totalCAA}</div>
+                    <div className="text-[10px] text-slate-500 uppercase font-semibold">CAA</div>
+                  </div>
+                  <div className="text-center px-3 py-1.5 rounded-lg bg-purple-50 border border-purple-200">
+                    <div className="text-sm font-bold text-purple-700">{dltSummary.totalCE}</div>
+                    <div className="text-[10px] text-slate-500 uppercase font-semibold">CE</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Tile 2: Organic */}
             <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
               <div className="text-[11px] font-sans font-semibold text-slate-500 uppercase tracking-wide">
-                Total Troop Strength
+                Organic Units
+              </div>
+              <div className="text-2xl font-sans font-bold text-emerald-700 mt-1">
+                {dltSummary.totalOrganicUnits}
+              </div>
+              <div className="text-xs font-sans text-slate-500 mt-0.5">
+                Strength: {dltSummary.totalOrganicStrength.toLocaleString()}
+              </div>
+            </div>
+
+            {/* Tile 3: Opcon */}
+            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
+              <div className="text-[11px] font-sans font-semibold text-slate-500 uppercase tracking-wide">
+                Opcon Units
               </div>
               <div className="text-2xl font-sans font-bold text-blue-600 mt-1">
-                {dltMetrics.totalTroops.toLocaleString()}
+                {dltSummary.totalOpconUnits}
               </div>
               <div className="text-xs font-sans text-slate-500 mt-0.5">
-                {dltMetrics.regularTroops.toLocaleString()} Regulars • {dltMetrics.caa.toLocaleString()} CAA
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-              <div className="text-[11px] font-sans font-semibold text-slate-500 uppercase tracking-wide">
-                AFP Regular Forces
-              </div>
-              <div className="text-2xl font-sans font-bold text-blue-700 mt-1">
-                {dltMetrics.regularTroops.toLocaleString()}
-              </div>
-              <div className="text-xs font-sans text-slate-500 mt-0.5">
-                {dltMetrics.officers.toLocaleString()} Officers • {dltMetrics.enlisted.toLocaleString()} Enlisted
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-              <div className="text-[11px] font-sans font-semibold text-slate-500 uppercase tracking-wide">
-                CAFGU Auxiliary (CAA)
-              </div>
-              <div className="text-2xl font-sans font-bold text-slate-800 mt-1">
-                {dltMetrics.caa.toLocaleString()}
-              </div>
-              <div className="text-xs font-sans text-slate-500 mt-0.5">
-                Active Force Multipliers in AOR
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-              <div className="text-[11px] font-sans font-semibold text-slate-500 uppercase tracking-wide">
-                Organic Assets & Mobility
-              </div>
-              <div className="text-2xl font-sans font-bold text-slate-800 mt-1">
-                {dltMetrics.totalAssets.toLocaleString()}
-              </div>
-              <div className="text-xs font-sans text-slate-500 mt-0.5">
-                {dltMetrics.wavsTavs} WAVs/TAVs • {dltMetrics.vehicles} Veh • {dltMetrics.artillery} Art
+                Strength: {dltSummary.totalOpconStrength.toLocaleString()}
               </div>
             </div>
           </div>
 
-          {/* DLT Tactical Geolocation & Interactive Map Banner */}
-          <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <MapPin className="w-4 h-4 text-blue-600" />
-                <h3 className="text-xs font-sans font-bold text-slate-900 uppercase tracking-wide">
-                  DLT Tactical Geolocation & Unit Stations (COP Map)
-                </h3>
-                <span className="px-2 py-0.5 rounded text-[10px] font-sans font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                  {dltMapRecords.length} Unit Stations Mapped
-                </span>
-              </div>
-              <button
-                onClick={() => setShowTacticalMap(!showTacticalMap)}
-                className="flex items-center space-x-1 text-xs font-sans font-semibold text-blue-600 hover:text-blue-700 cursor-pointer"
-              >
-                <span>{showTacticalMap ? 'Collapse Map' : 'Expand Map'}</span>
-                {showTacticalMap ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-
-            {showTacticalMap && (
-              <div className="rounded-lg overflow-hidden border border-slate-200">
-                <TacticalMap
-                  records={dltMapRecords}
-                  onSelectRecord={onSelectRecord}
-                  isLive={true}
-                  className="h-[280px] w-full"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* DLT Search & Filters Toolbar */}
+          {/* DLT Search & Filter Toolbar */}
           <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2 flex-1">
               {/* Search */}
@@ -1187,49 +960,31 @@ NOTIFY pgrst, 'reload schema';`;
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search battalion, brigade, station province, or MGRS grid..."
+                  placeholder="Search name, rank, serial #, unit, location, MGRS, designation..."
                   value={dltSearchQuery}
                   onChange={(e) => setDltSearchQuery(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs font-sans text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white"
                 />
               </div>
 
-              {/* Brigade Filter */}
+              {/* Status Filter */}
               <select
-                value={dltBrigadeFilter}
-                onChange={(e) => setDltBrigadeFilter(e.target.value)}
+                value={dltStatusFilter}
+                onChange={(e) => setDltStatusFilter(e.target.value)}
                 className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-sans text-slate-700 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer"
               >
-                <option value="all">All Brigades</option>
-                {dltBrigadeOptions.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
+                <option value="all">All Status</option>
+                <option value="Organic">Organic</option>
+                <option value="Opcon">Opcon</option>
               </select>
 
-              {/* Area / Province Filter */}
-              <select
-                value={dltAreaFilter}
-                onChange={(e) => setDltAreaFilter(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-sans text-slate-700 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer"
-              >
-                <option value="all">All Provinces / Areas</option>
-                {dltAreaOptions.map((a) => (
-                  <option key={a} value={a}>
-                    {a}
-                  </option>
-                ))}
-              </select>
-
-              {(dltSearchQuery || dltBrigadeFilter !== 'all' || dltAreaFilter !== 'all') && (
+              {(dltSearchQuery || dltStatusFilter !== 'all') && (
                 <button
                   onClick={() => {
                     setDltSearchQuery('');
-                    setDltBrigadeFilter('all');
-                    setDltAreaFilter('all');
+                    setDltStatusFilter('all');
                   }}
-                  className="text-xs font-sans text-blue-600 hover:text-blue-800 font-medium px-2 py-1"
+                  className="text-xs font-sans text-blue-600 hover:text-blue-800 font-medium px-2 py-1 cursor-pointer"
                 >
                   Clear Filters
                 </button>
@@ -1243,7 +998,7 @@ NOTIFY pgrst, 'reload schema';`;
                 className={`p-1.5 rounded text-xs font-sans transition-colors cursor-pointer ${
                   dltViewMode === 'table' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-800'
                 }`}
-                title="Data Table View"
+                title="Table View"
               >
                 <Table className="w-3.5 h-3.5" />
               </button>
@@ -1252,165 +1007,150 @@ NOTIFY pgrst, 'reload schema';`;
                 className={`p-1.5 rounded text-xs font-sans transition-colors cursor-pointer ${
                   dltViewMode === 'cards' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-800'
                 }`}
-                title="Card Grid View"
+                title="Card View"
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
 
-          {/* DLT Units Data Table View */}
+          {/* DLT Table View */}
           {dltViewMode === 'table' ? (
             <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
               <table className="w-full text-left text-xs font-sans">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-600 uppercase text-[11px] font-semibold bg-slate-50">
-                    <th className="py-3 px-3">Battalion / Unit</th>
-                    <th className="py-3 px-3">Brigade / HQ</th>
-                    <th className="py-3 px-3">Province / Area</th>
-                    <th className="py-3 px-3">MGRS Grid</th>
-                    <th className="py-3 px-3 text-right">Officers</th>
-                    <th className="py-3 px-3 text-right">Enlisted</th>
-                    <th className="py-3 px-3 text-right">CAA</th>
-                    <th className="py-3 px-3 text-right font-bold text-blue-700">Total Troops</th>
-                    <th className="py-3 px-3 text-center">Mobility</th>
-                    <th className="py-3 px-3 text-center">Heavy Assets</th>
-                    <th className="py-3 px-3 text-center">Assigned Profiles</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Commander</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Serial # / AFPOS</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Branch</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Designation</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Unit</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Location / MGRS</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Contact #</th>
+                    <th className="py-3 px-3 text-right whitespace-nowrap">Offr</th>
+                    <th className="py-3 px-3 text-right whitespace-nowrap">EP</th>
+                    <th className="py-3 px-3 text-right whitespace-nowrap">CAA</th>
+                    <th className="py-3 px-3 text-right whitespace-nowrap">CE</th>
+                    <th className="py-3 px-3 text-center whitespace-nowrap">Status</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Date Assumption</th>
                     <th className="py-3 px-3 text-right sticky right-0 bg-slate-50 shadow-[-4px_0_6px_rgba(0,0,0,0.04)]">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  {filteredForceUnits.length === 0 ? (
+                  {filteredDltRecords.length === 0 ? (
                     <tr>
-                      <td colSpan={12} className="py-16 text-center text-slate-400 font-sans text-xs">
+                      <td colSpan={14} className="py-16 text-center text-slate-400 font-sans text-xs">
                         <div className="flex flex-col items-center justify-center space-y-2">
                           <Shield className="w-9 h-9 text-slate-300 mb-1" />
-                          <p className="text-sm text-slate-700 font-bold">No Troop Units found matching criteria.</p>
+                          <p className="text-sm text-slate-700 font-bold">No DLT records found.</p>
                           <p className="text-xs text-slate-400">
-                            Click &quot;+ Add Unit / Troop Disposition&quot; above to register tactical units.
+                            Click &quot;+ Add DLT Record&quot; above to add records.
                           </p>
                         </div>
                       </td>
                     </tr>
                   ) : (
-                    filteredForceUnits.map((u) => {
-                      const totalTroops = (u.afp_officers || 0) + (u.afp_enlisted || 0) + (u.caa || 0);
-                      const unitMgrs =
-                        u.mgrs ||
-                        (u.area && PRESET_AREA_COORDS[u.area]
-                          ? toMGRS(PRESET_AREA_COORDS[u.area][0], PRESET_AREA_COORDS[u.area][1])
-                          : '—');
-                      const profileCount = profileCountByUnit[u.battalion] || 0;
+                    filteredDltRecords.map((d) => {
+                      const statusBadge = getDltStatusBadge(d.status);
+                      const rowTotal = (d.officers_count || 0) + (d.ep_count || 0) + (d.caa_count || 0) + (d.ce_count || 0);
 
                       return (
-                        <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
-                          {/* Battalion / Unit */}
-                          <td className="py-3 px-3 font-medium text-slate-900 whitespace-nowrap">
-                            <div className="flex items-center space-x-2.5">
-                              {u.logo_url ? (
-                                <img
-                                  src={u.logo_url}
-                                  alt={u.battalion}
-                                  className="w-8 h-8 rounded-md object-contain border border-slate-200 bg-slate-50 p-0.5 shrink-0 shadow-sm"
-                                />
-                              ) : (
-                                <div className="w-8 h-8 rounded-md border border-blue-200 bg-blue-50/80 flex items-center justify-center text-blue-600 shrink-0">
-                                  <Shield className="w-4 h-4 text-blue-600" />
-                                </div>
-                              )}
+                        <tr key={d.id} className="hover:bg-slate-50/80 transition-colors">
+                          {/* Commander */}
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-7 h-7 rounded-md border border-blue-200 bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                                <Shield className="w-3.5 h-3.5" />
+                              </div>
                               <div>
-                                <span className="font-bold text-slate-900 block">{u.battalion}</span>
-                                <span className="text-[10px] text-slate-400 font-mono">ID: {u.id.slice(0, 10)}</span>
+                                <span className="font-bold text-slate-900 block">
+                                  {d.rank} {d.name}
+                                </span>
                               </div>
                             </div>
                           </td>
 
-                          {/* Brigade */}
-                          <td className="py-3 px-3 text-slate-700 whitespace-nowrap font-medium">{u.brigade}</td>
-
-                          {/* Province / Area */}
-                          <td className="py-3 px-3 text-slate-600 whitespace-nowrap">
-                            <div className="flex items-center space-x-1.5">
-                              <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                              <span>{u.area || '—'}</span>
-                            </div>
+                          {/* Serial # / AFPOS */}
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <div className="font-mono text-slate-700">{d.serial_number || '—'}</div>
+                            <div className="text-[11px] text-blue-600 font-semibold">{d.afpos}</div>
                           </td>
 
-                          {/* MGRS Grid */}
-                          <td className="py-3 px-3 whitespace-nowrap font-mono">
-                            <div className="flex items-center space-x-1.5">
-                              <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-800 text-[10px] font-semibold">
-                                {unitMgrs}
-                              </span>
-                              {unitMgrs !== '—' && (
+                          {/* Branch */}
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <span className="px-2 py-0.5 rounded border text-[10px] font-bold bg-slate-100 border-slate-200 text-slate-700">
+                              {d.branch_of_service}
+                            </span>
+                          </td>
+
+                          {/* Designation */}
+                          <td className="py-3 px-3 text-slate-700 max-w-[140px] truncate" title={d.designation}>
+                            {d.designation || '—'}
+                          </td>
+
+                          {/* Unit */}
+                          <td className="py-3 px-3 whitespace-nowrap font-medium text-slate-800">
+                            {d.unit_name || '—'}
+                          </td>
+
+                          {/* Location / MGRS */}
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <div className="text-slate-700 font-medium max-w-[160px] truncate" title={d.location}>
+                              {d.location || '—'}
+                            </div>
+                            {d.mgrs && (
+                              <div className="flex items-center space-x-1 mt-0.5">
+                                <span className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-800 text-[10px] font-mono font-semibold">
+                                  {d.mgrs}
+                                </span>
                                 <button
                                   type="button"
-                                  onClick={() => handleCopy(unitMgrs, `mgrs-${u.id}`)}
-                                  className="text-slate-400 hover:text-blue-600 p-0.5 rounded transition-colors"
+                                  onClick={() => handleCopy(d.mgrs!, `dlt-mgrs-${d.id}`)}
+                                  className="text-slate-400 hover:text-blue-600 p-0.5 rounded transition-colors cursor-pointer"
                                   title="Copy MGRS"
                                 >
-                                  {copiedKey === `mgrs-${u.id}` ? (
+                                  {copiedKey === `dlt-mgrs-${d.id}` ? (
                                     <Check className="w-3 h-3 text-emerald-600" />
                                   ) : (
                                     <Copy className="w-3 h-3" />
                                   )}
                                 </button>
-                              )}
-                            </div>
+                              </div>
+                            )}
                           </td>
 
-                          {/* Officers */}
-                          <td className="py-3 px-3 text-right font-bold text-blue-600">{u.afp_officers}</td>
-
-                          {/* Enlisted */}
-                          <td className="py-3 px-3 text-right font-bold text-slate-700">{u.afp_enlisted}</td>
-
-                          {/* CAA */}
-                          <td className="py-3 px-3 text-right text-slate-700">{u.caa}</td>
-
-                          {/* Total Troops */}
-                          <td className="py-3 px-3 text-right font-bold text-blue-700 bg-blue-50/40">
-                            {totalTroops.toLocaleString()}
+                          {/* Contact # */}
+                          <td className="py-3 px-3 whitespace-nowrap font-mono text-slate-600 text-[11px]">
+                            {d.contact_number || '—'}
                           </td>
 
-                          {/* Mobility */}
-                          <td className="py-3 px-3 text-center whitespace-nowrap">
-                            <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-medium">
-                              {u.wavs_tavs || 0} WAV • {u.vehicle || 0} Veh
+                          {/* Strength columns */}
+                          <td className="py-3 px-3 text-right font-bold text-blue-600">{d.officers_count}</td>
+                          <td className="py-3 px-3 text-right font-bold text-slate-700">{d.ep_count}</td>
+                          <td className="py-3 px-3 text-right text-amber-700 font-bold">{d.caa_count}</td>
+                          <td className="py-3 px-3 text-right text-purple-700 font-bold">{d.ce_count}</td>
+
+                          {/* Status */}
+                          <td className="py-3 px-3 whitespace-nowrap text-center">
+                            <span className={`px-2 py-0.5 rounded border text-[10px] font-semibold ${statusBadge.bg} ${statusBadge.color}`}>
+                              {statusBadge.label}
                             </span>
                           </td>
 
-                          {/* Heavy Assets */}
-                          <td className="py-3 px-3 text-center whitespace-nowrap">
-                            <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-medium">
-                              {u.artillery_asset || 0} Art • {u.isr_asset || 0} ISR
-                            </span>
-                          </td>
-
-                          {/* Assigned Profiles */}
-                          <td className="py-3 px-3 text-center whitespace-nowrap">
-                            <button
-                              onClick={() => {
-                                setUnitFilter(u.battalion);
-                                setActiveTab('personnel_profile');
-                              }}
-                              className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[11px] font-semibold transition-colors cursor-pointer"
-                              title={`View ${profileCount} personnel assigned to ${u.battalion}`}
-                            >
-                              <Users className="w-3 h-3" />
-                              <span>{profileCount} Profiles</span>
-                            </button>
+                          {/* Date Assumption */}
+                          <td className="py-3 px-3 whitespace-nowrap font-mono text-slate-600 text-[11px]">
+                            {d.date_assumption || '—'}
                           </td>
 
                           {/* Actions */}
-                          <td className="py-3 px-3 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50/80 shadow-[-4px_0_6px_rgba(0,0,0,0.04)]">
+                          <td className="py-3 px-3 text-right whitespace-nowrap sticky right-0 bg-white shadow-[-4px_0_6px_rgba(0,0,0,0.04)]">
                             <div className="flex items-center justify-end space-x-1.5">
                               <button
                                 onClick={() => {
-                                  setEditingForceUnit(u);
-                                  setIsForceModalOpen(true);
+                                  setEditingDltRecord(d);
+                                  setIsDltModalOpen(true);
                                 }}
                                 className="flex items-center space-x-1 px-2.5 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-sans font-semibold transition-colors cursor-pointer"
                               >
@@ -1418,9 +1158,9 @@ NOTIFY pgrst, 'reload schema';`;
                                 <span>Edit</span>
                               </button>
                               <button
-                                onClick={() => handleDeleteForceUnit(u.id)}
+                                onClick={() => handleDeleteDltRecord(d.id)}
                                 className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-900 border border-slate-200 transition-colors cursor-pointer"
-                                title="Delete Unit Disposition"
+                                title="Delete DLT Record"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1432,40 +1172,18 @@ NOTIFY pgrst, 'reload schema';`;
                   )}
                 </tbody>
 
-                {/* Column Totals Footer */}
-                {filteredForceUnits.length > 0 && (
+                {/* Footer totals */}
+                {filteredDltRecords.length > 0 && (
                   <tfoot>
                     <tr className="bg-slate-50 border-t-2 border-slate-200 text-[11px] font-bold">
-                      <td className="py-3 px-3 text-slate-700 uppercase tracking-wider" colSpan={4}>
-                        AOR TOTALS ({filteredForceUnits.length} Units)
+                      <td className="py-3 px-3 text-slate-700 uppercase tracking-wider" colSpan={7}>
+                        TOTAL ({filteredDltRecords.length} Records)
                       </td>
-                      <td className="py-3 px-3 text-right text-blue-600 font-bold">
-                        {filteredForceUnits.reduce((s, u) => s + (u.afp_officers || 0), 0)}
-                      </td>
-                      <td className="py-3 px-3 text-right text-slate-700 font-bold">
-                        {filteredForceUnits.reduce((s, u) => s + (u.afp_enlisted || 0), 0)}
-                      </td>
-                      <td className="py-3 px-3 text-right text-slate-700 font-bold">
-                        {filteredForceUnits.reduce((s, u) => s + (u.caa || 0), 0)}
-                      </td>
-                      <td className="py-3 px-3 text-right text-blue-700 font-bold bg-blue-100/40">
-                        {filteredForceUnits
-                          .reduce(
-                            (s, u) => s + (u.afp_officers || 0) + (u.afp_enlisted || 0) + (u.caa || 0),
-                            0
-                          )
-                          .toLocaleString()}
-                      </td>
-                      <td className="py-3 px-3 text-center text-slate-700">
-                        {filteredForceUnits.reduce((s, u) => s + (u.wavs_tavs || 0) + (u.vehicle || 0), 0)} Mob
-                      </td>
-                      <td className="py-3 px-3 text-center text-slate-700">
-                        {filteredForceUnits.reduce((s, u) => s + (u.artillery_asset || 0) + (u.isr_asset || 0), 0)} Hvy
-                      </td>
-                      <td className="py-3 px-3 text-center text-blue-700">
-                        {friendlyProfiles.length} Total
-                      </td>
-                      <td></td>
+                      <td className="py-3 px-3 text-right text-blue-600 font-bold">{dltSummary.totalOfficers}</td>
+                      <td className="py-3 px-3 text-right text-slate-700 font-bold">{dltSummary.totalEP}</td>
+                      <td className="py-3 px-3 text-right text-amber-700 font-bold">{dltSummary.totalCAA}</td>
+                      <td className="py-3 px-3 text-right text-purple-700 font-bold">{dltSummary.totalCE}</td>
+                      <td colSpan={3}></td>
                     </tr>
                   </tfoot>
                 )}
@@ -1474,131 +1192,110 @@ NOTIFY pgrst, 'reload schema';`;
           ) : (
             /* DLT Cards Grid View */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredForceUnits.map((u) => {
-                const totalTroops = (u.afp_officers || 0) + (u.afp_enlisted || 0) + (u.caa || 0);
-                const unitMgrs =
-                  u.mgrs ||
-                  (u.area && PRESET_AREA_COORDS[u.area]
-                    ? toMGRS(PRESET_AREA_COORDS[u.area][0], PRESET_AREA_COORDS[u.area][1])
-                    : '—');
-                const profileCount = profileCountByUnit[u.battalion] || 0;
+              {filteredDltRecords.map((d) => {
+                const statusBadge = getDltStatusBadge(d.status);
+                const rowTotal = (d.officers_count || 0) + (d.ep_count || 0) + (d.caa_count || 0) + (d.ce_count || 0);
 
                 return (
                   <div
-                    key={u.id}
+                    key={d.id}
                     className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow transition-all space-y-3.5"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center space-x-3">
-                        {u.logo_url ? (
-                          <img
-                            src={u.logo_url}
-                            alt={u.battalion}
-                            className="w-10 h-10 rounded-lg object-contain border border-slate-200 bg-slate-50 p-1 shrink-0 shadow-sm"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg border border-blue-200 bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
-                            <Shield className="w-5 h-5 text-blue-600" />
-                          </div>
-                        )}
+                        <div className="w-10 h-10 rounded-lg border border-blue-200 bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                          <Shield className="w-5 h-5 text-blue-600" />
+                        </div>
                         <div>
-                          <h4 className="text-xs font-sans font-bold text-slate-900 leading-tight">{u.battalion}</h4>
-                          <span className="text-[11px] font-sans text-slate-500 font-medium">{u.brigade}</span>
+                          <h4 className="text-xs font-sans font-bold text-slate-900 leading-tight">
+                            {d.rank} {d.name}
+                          </h4>
+                          <span className="text-[11px] font-sans text-slate-500 font-medium">{d.designation}</span>
                         </div>
                       </div>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-sans font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                        {totalTroops.toLocaleString()} Troops
+                      <span className={`px-2 py-0.5 rounded border text-[10px] font-sans font-semibold ${statusBadge.bg} ${statusBadge.color}`}>
+                        {statusBadge.label}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs font-sans bg-slate-50/70 p-2.5 rounded-lg border border-slate-100">
-                      <div>
-                        <span className="text-[10px] text-slate-400 uppercase block font-semibold">Station / AOR</span>
-                        <div className="flex items-center space-x-1 mt-0.5 text-slate-700 font-medium">
-                          <MapPin className="w-3 h-3 text-blue-500 shrink-0" />
-                          <span>{u.area || 'Central Mindanao'}</span>
-                        </div>
+                    <div className="space-y-1.5 text-xs font-sans bg-slate-50/70 p-2.5 rounded-lg border border-slate-100">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Serial #:</span>
+                        <span className="font-mono font-semibold text-slate-800">{d.serial_number || '—'}</span>
                       </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 uppercase block font-semibold">MGRS Grid</span>
-                        <div className="flex items-center space-x-1 mt-0.5 text-slate-800 font-mono text-[11px]">
-                          <span>{unitMgrs}</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Branch:</span>
+                        <span className="font-bold text-slate-700">{d.branch_of_service} / {d.afpos}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Unit:</span>
+                        <span className="text-slate-800 font-medium truncate max-w-[160px]">{d.unit_name || '—'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Location:</span>
+                        <span className="text-slate-700 font-medium truncate max-w-[160px]">{d.location || '—'}</span>
+                      </div>
+                      {d.mgrs && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500">MGRS:</span>
+                          <span className="font-mono text-slate-800 font-semibold">{d.mgrs}</span>
                         </div>
+                      )}
+                      {d.contact_number && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500">Contact:</span>
+                          <span className="font-mono text-slate-700">{d.contact_number}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Date Assumption:</span>
+                        <span className="font-mono text-slate-700">{d.date_assumption || '—'}</span>
                       </div>
                     </div>
 
-                    {/* Troop Strength Breakdown */}
-                    <div className="grid grid-cols-3 gap-2 text-center text-xs font-sans">
-                      <div className="p-2 rounded bg-slate-50 border border-slate-100">
-                        <span className="text-[10px] text-slate-500 block">Officers</span>
-                        <span className="text-sm font-bold text-blue-600">{u.afp_officers}</span>
+                    {/* Strength breakdown */}
+                    <div className="grid grid-cols-5 gap-1 text-center text-xs font-sans">
+                      <div className="p-1.5 rounded bg-blue-50 border border-blue-100">
+                        <span className="text-[10px] text-slate-500 block">Offr</span>
+                        <span className="text-xs font-bold text-blue-700">{d.officers_count}</span>
                       </div>
-                      <div className="p-2 rounded bg-slate-50 border border-slate-100">
-                        <span className="text-[10px] text-slate-500 block">Enlisted</span>
-                        <span className="text-sm font-bold text-slate-800">{u.afp_enlisted}</span>
+                      <div className="p-1.5 rounded bg-slate-50 border border-slate-100">
+                        <span className="text-[10px] text-slate-500 block">EP</span>
+                        <span className="text-xs font-bold text-slate-800">{d.ep_count}</span>
                       </div>
-                      <div className="p-2 rounded bg-slate-50 border border-slate-100">
-                        <span className="text-[10px] text-slate-500 block">CAA Aux</span>
-                        <span className="text-sm font-bold text-slate-700">{u.caa}</span>
+                      <div className="p-1.5 rounded bg-amber-50 border border-amber-100">
+                        <span className="text-[10px] text-slate-500 block">CAA</span>
+                        <span className="text-xs font-bold text-amber-700">{d.caa_count}</span>
                       </div>
-                    </div>
-
-                    {/* Organic Equipment / Assets Chips */}
-                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-sans text-slate-600">
-                      {u.wavs_tavs > 0 && (
-                        <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 text-[10px]">
-                          🛡️ {u.wavs_tavs} WAV/TAV
-                        </span>
-                      )}
-                      {u.vehicle > 0 && (
-                        <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 text-[10px]">
-                          🚛 {u.vehicle} Vehicles
-                        </span>
-                      )}
-                      {u.artillery_asset > 0 && (
-                        <span className="px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-semibold">
-                          💥 {u.artillery_asset} Artillery
-                        </span>
-                      )}
-                      {u.isr_asset > 0 && (
-                        <span className="px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-semibold">
-                          📡 {u.isr_asset} ISR
-                        </span>
-                      )}
+                      <div className="p-1.5 rounded bg-purple-50 border border-purple-100">
+                        <span className="text-[10px] text-slate-500 block">CE</span>
+                        <span className="text-xs font-bold text-purple-700">{d.ce_count}</span>
+                      </div>
+                      <div className="p-1.5 rounded bg-slate-100 border border-slate-200">
+                        <span className="text-[10px] text-slate-500 block">Total</span>
+                        <span className="text-xs font-bold text-slate-900">{rowTotal}</span>
+                      </div>
                     </div>
 
                     {/* Footer Actions */}
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-end space-x-1.5">
                       <button
                         onClick={() => {
-                          setUnitFilter(u.battalion);
-                          setActiveTab('personnel_profile');
+                          setEditingDltRecord(d);
+                          setIsDltModalOpen(true);
                         }}
-                        className="text-xs font-sans text-blue-600 hover:text-blue-800 font-semibold flex items-center space-x-1 cursor-pointer"
+                        className="flex items-center space-x-1 px-2.5 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-sans font-semibold transition-colors cursor-pointer"
                       >
-                        <Users className="w-3.5 h-3.5" />
-                        <span>{profileCount} Profiles Linked</span>
+                        <Edit className="w-3 h-3" />
+                        <span>Edit</span>
                       </button>
-
-                      <div className="flex items-center space-x-1.5">
-                        <button
-                          onClick={() => {
-                            setEditingForceUnit(u);
-                            setIsForceModalOpen(true);
-                          }}
-                          className="flex items-center space-x-1 px-2.5 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-sans font-semibold transition-colors cursor-pointer"
-                        >
-                          <Edit className="w-3 h-3" />
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteForceUnit(u.id)}
-                          className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-900 border border-slate-200 transition-colors cursor-pointer"
-                          title="Delete Unit"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handleDeleteDltRecord(d.id)}
+                        className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-900 border border-slate-200 transition-colors cursor-pointer"
+                        title="Delete DLT Record"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 );
@@ -1607,6 +1304,8 @@ NOTIFY pgrst, 'reload schema';`;
           )}
         </div>
       )}
+
+
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {/* ── TAB 2: PERSONNEL PROFILES WORKSPACE (ORIGINAL PERSONNEL CELL) ───── */}
@@ -1770,7 +1469,7 @@ NOTIFY pgrst, 'reload schema';`;
                     setStatusFilter('all');
                     setRemarksFilter('all');
                   }}
-                  className="text-xs font-sans text-blue-600 hover:text-blue-800 font-medium px-2 py-1"
+                  className="text-xs font-sans text-blue-600 hover:text-blue-800 font-medium px-2 py-1 cursor-pointer"
                 >
                   Clear Filters
                 </button>
@@ -1876,7 +1575,7 @@ NOTIFY pgrst, 'reload schema';`;
                               <button
                                 type="button"
                                 onClick={() => handleCopy(p.serial_number, `sn-${p.id}`)}
-                                className="text-slate-400 hover:text-blue-600 p-0.5 rounded transition-colors"
+                                className="text-slate-400 hover:text-blue-600 p-0.5 rounded transition-colors cursor-pointer"
                                 title="Copy Serial Number"
                               >
                                 {copiedKey === `sn-${p.id}` ? (
@@ -2145,13 +1844,13 @@ NOTIFY pgrst, 'reload schema';`;
       )}
 
       {/* ────────────────────────────────────────────────────────────────────── */}
-      {/* ── MODALS: FORCE UNIT (DLT) & PERSONNEL PROFILE & DOC VIEWER ───────── */}
+      {/* ── MODALS: DLT RECORD MODAL & PERSONNEL PROFILE & DOC VIEWER ───────── */}
       {/* ────────────────────────────────────────────────────────────────────── */}
-      <ForceUnitModal
-        isOpen={isForceModalOpen}
-        onClose={() => setIsForceModalOpen(false)}
-        onSave={handleSaveForceUnit}
-        editingUnit={editingForceUnit}
+      <DLTRecordModal
+        isOpen={isDltModalOpen}
+        onClose={() => setIsDltModalOpen(false)}
+        onSave={handleSaveDltRecord}
+        editingRecord={editingDltRecord}
       />
 
       <PersonnelProfileModal

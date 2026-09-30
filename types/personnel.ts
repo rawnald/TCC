@@ -120,3 +120,29 @@ export const generateUUID = (): string => {
 
 export type PersonnelTab = 'dlt' | 'personnel_profile';
 
+export type DLTStatus = 'Organic' | 'Opcon';
+
+export type BranchOfService = 'PA' | 'PAF' | 'PN' | 'PN(M)';
+
+export interface DLTRecord {
+  id: string;
+  rank: string;
+  name: string;
+  serial_number: string;
+  afpos: string;
+  branch_of_service: BranchOfService | string;
+  designation: string;
+  unit_id?: string;
+  unit_name: string;
+  location: string;
+  mgrs?: string;
+  contact_number?: string;
+  officers_count: number;
+  ep_count: number;
+  caa_count: number;
+  ce_count: number;
+  date_assumption: string;
+  status: DLTStatus | string;
+  created_at?: string;
+  updated_at?: string;
+}
