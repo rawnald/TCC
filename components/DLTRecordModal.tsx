@@ -125,7 +125,14 @@ export default function DLTRecordModal({
       setAfpos(editingRecord.afpos || 'INF');
       setBranchOfService((editingRecord.branch_of_service as BranchOfService) || 'PA');
       setDesignation(editingRecord.designation || '');
-      setUnitId(editingRecord.unit_id || '');
+      // If record has a real unit_id, use it; otherwise show "Other" with the unit_name
+      if (editingRecord.unit_id) {
+        setUnitId(editingRecord.unit_id);
+      } else if (editingRecord.unit_name) {
+        setUnitId('__other__');
+      } else {
+        setUnitId('');
+      }
       setUnitName(editingRecord.unit_name || '');
       setLocation(editingRecord.location || '');
       setMgrs(editingRecord.mgrs || '');
@@ -161,8 +168,13 @@ export default function DLTRecordModal({
   const handleUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedId = e.target.value;
     setUnitId(selectedId);
-    const found = forceUnits.find((u) => u.id === selectedId);
-    setUnitName(found ? found.battalion : '');
+    if (selectedId === '__other__') {
+      // User chose "Other" — clear unitName so they can type their own
+      setUnitName('');
+    } else {
+      const found = forceUnits.find((u) => u.id === selectedId);
+      setUnitName(found ? found.battalion : '');
+    }
   };
 
   const totalStrength =
@@ -201,7 +213,7 @@ export default function DLTRecordModal({
       afpos: afpos.trim(),
       branch_of_service: branchOfService,
       designation: designation.trim(),
-      unit_id: unitId || undefined,
+      unit_id: (unitId && unitId !== '__other__') ? unitId : undefined,
       unit_name: unitName.trim(),
       location: location.trim(),
       mgrs: mgrs.trim(),
@@ -370,25 +382,38 @@ export default function DLTRecordModal({
                 <label className={labelCls}>
                   Unit <span className="text-rose-500">*</span>
                 </label>
-                {loadingUnits ? (
+                 {loadingUnits ? (
                   <div className="flex items-center space-x-2 text-slate-500 py-2">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     <span className="text-xs">Loading units...</span>
                   </div>
                 ) : forceUnits.length > 0 ? (
-                  <select
-                    value={unitId}
-                    onChange={handleUnitChange}
-                    className={inputCls}
-                    required
-                  >
-                    <option value="">— Select Unit —</option>
-                    {forceUnits.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.battalion}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-2">
+                    <select
+                      value={unitId}
+                      onChange={handleUnitChange}
+                      className={inputCls}
+                    >
+                      <option value="">— Select Unit —</option>
+                      {forceUnits.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.battalion}
+                        </option>
+                      ))}
+                      <option value="__other__">Other / Not in list…</option>
+                    </select>
+                    {/* Manual input shown when "Other" is selected or dropdown is empty */}
+                    {(unitId === '__other__' || (!unitId && unitName)) && (
+                      <input
+                        type="text"
+                        placeholder="Type unit name manually…"
+                        value={unitId === '__other__' ? unitName : unitName}
+                        onChange={(e) => setUnitName(e.target.value)}
+                        className={`${inputCls} border-blue-300 bg-blue-50 focus:border-blue-600`}
+                        autoFocus
+                      />
+                    )}
+                  </div>
                 ) : (
                   <input
                     type="text"
@@ -398,6 +423,7 @@ export default function DLTRecordModal({
                     className={inputCls}
                   />
                 )}
+
               </div>
             </div>
           </div>
