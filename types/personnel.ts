@@ -117,3 +117,6 @@ export const generateUUID = (): string => {
     return v.toString(16);
   });
 };
+
+export type PersonnelTab = 'dlt' | 'personnel_profile';
+
