@@ -724,15 +724,9 @@ export default function PersonnelCellWorkspace({
                     ? 'Disposition and Location of Troops (DLT)'
                     : 'Personnel Profiles & Military Roster'}
                 </h1>
-                <span className="px-2 py-0.5 rounded text-[10px] font-sans font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                  G1 PERSONNEL
-                </span>
+               
               </div>
-              <p className="text-xs font-sans text-slate-500 mt-0.5">
-                {activeTab === 'dlt'
-                  ? 'Command force disposition, station outposts, MGRS grid coordinates, PERSTAT troop strength & tactical missions.'
-                  : 'Individual service member accountability, assigned billets, AFPOS branches, duty status & security clearances.'}
-              </p>
+             
             </div>
           </div>
 
