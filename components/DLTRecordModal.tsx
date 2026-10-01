@@ -259,9 +259,7 @@ export default function DLTRecordModal({
               <h2 className="text-sm font-sans font-bold text-slate-900 uppercase tracking-wide">
                 {editingRecord ? 'Edit DLT Record' : 'Add DLT Record'}
               </h2>
-              <p className="text-xs font-sans text-slate-500">
-                G1 Personnel Cell • Disposition and Location of Troops
-              </p>
+             
             </div>
           </div>
           <button
