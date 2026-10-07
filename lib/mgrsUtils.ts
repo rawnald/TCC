@@ -304,3 +304,36 @@ export function toZuluDTG(isoStr?: string): string {
   const yr = String(d.getUTCFullYear()).slice(-2);
   return `${dd}${hh}${mm}Z ${mon} ${yr}`;
 }
+
+/**
+ * Converts Zulu DTG string (e.g. "150745Z SEP 26") or any date string to a valid ISO string.
+ * Ensures the date is safe for PostgreSQL TIMESTAMPTZ columns.
+ */
+export function parseDTGToIso(str?: string): string {
+  if (!str) return new Date().toISOString();
+  const trimmed = str.trim();
+  const dtgMatch = trimmed.match(/^(\d{2})(\d{2})(\d{2})Z?\s+([A-Za-z]{3})\s+(\d{2}|\d{4})$/i);
+  if (dtgMatch) {
+    const months: Record<string, number> = {
+      JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+      JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11,
+    };
+    const day = parseInt(dtgMatch[1], 10);
+    const hour = parseInt(dtgMatch[2], 10);
+    const min = parseInt(dtgMatch[3], 10);
+    const mStr = dtgMatch[4].toUpperCase();
+    let yr = parseInt(dtgMatch[5], 10);
+    if (yr < 100) yr += 2000;
+    const m = months[mStr] !== undefined ? months[mStr] : 0;
+    const d = new Date(Date.UTC(yr, m, day, hour, min, 0));
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+  const standard = Date.parse(trimmed);
+  if (!isNaN(standard)) {
+    const d = new Date(standard);
+    if (d.getUTCFullYear() >= 1970 && d.getUTCFullYear() <= 2100) {
+      return d.toISOString();
+    }
+  }
+  return new Date().toISOString();
+}

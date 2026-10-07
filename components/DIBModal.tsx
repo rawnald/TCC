@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, FileText, CheckCircle2, AlertTriangle, MapPin, Send, Crosshair, Sparkles } from 'lucide-react';
 import { toZuluDTG, toMGRS, parseMGRSToCoords } from '@/lib/mgrsUtils';
 import { PH_PROVINCES, COMMON_PUROKS } from '@/lib/phLocationData';
+import { isUUID, generateUUID } from '@/types/personnel';
 
 export type ThreatGroupType =
   | 'PIAGs'
@@ -314,7 +315,7 @@ export default function DIBModal({
     const finalPurok = purokSitio === 'Custom' ? customPurok.trim() || 'Purok' : purokSitio;
 
     const record: DIBRecord = {
-      id: initialData?.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `dib-${Date.now()}`),
+      id: initialData?.id && isUUID(initialData.id) ? initialData.id : generateUUID(),
       dib_id: dibId.trim() || `DIB-${Date.now()}`,
       activity: activity.trim() || 'Unspecified intelligence activity',
       details: details.trim(),

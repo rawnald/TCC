@@ -7,7 +7,8 @@ import EnemyLocationModal, { EnemyLocationRecord } from './EnemyLocationModal';
 import EnemyProfileModal, { EnemyProfileRecord, THREAT_GROUPS } from './EnemyProfileModal';
 import TacticalMap from './TacticalMap';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
-import { toZuluDTG, parseMGRSToCoords, toMGRS } from '@/lib/mgrsUtils';
+import { toZuluDTG, parseMGRSToCoords, toMGRS, parseDTGToIso } from '@/lib/mgrsUtils';
+import { isUUID, generateUUID } from '@/types/personnel';
 import {
   FileText,
   Crosshair,
@@ -195,7 +196,30 @@ export default function IntelligenceCellWorkspace({
           .order('created_at', { ascending: false });
 
         if (dibData && !dibErr) {
-          setDibRecords(dibData);
+          const mapped: DIBRecord[] = dibData.map((d: any) => ({
+            id: d.id,
+            dib_id: d.dib_id || d.bulletin_number || `DIB-${String(d.id).slice(0, 6)}`,
+            activity: d.activity || d.title || 'Unspecified activity',
+            details: d.details || d.content || '',
+            datetime: d.datetime || (d.date ? `${d.date}T00:00:00Z` : toZuluDTG(d.created_at)),
+            mgrs: d.mgrs || '',
+            threat_group: d.threat_group || d.threat_actor || 'BIFF',
+            threat_group_other: d.threat_group_other || '',
+            personality_victim: d.personality_victim || 'N/A',
+            motive: d.motive || 'Undetermined',
+            source_evaluation: d.source_evaluation || d.source || 'Direct Field Report',
+            type: d.type || (d.threat_level === 'HIGH' ? 'Violent' : 'Non-Violent'),
+            address: d.address || d.target_area || '',
+            province: d.province || 'Maguindanao del Sur',
+            municipality: d.municipality || '',
+            barangay: d.barangay || '',
+            purok_sitio: d.purok_sitio || '',
+            lat: d.lat ? Number(d.lat) : undefined,
+            lng: d.lng ? Number(d.lng) : undefined,
+            created_at: d.created_at,
+            updated_at: d.updated_at,
+          }));
+          setDibRecords(mapped);
         } else {
           if (dibErr) {
             console.warn('Supabase intel_dib query notice:', dibErr.message);
@@ -495,56 +519,100 @@ export default function IntelligenceCellWorkspace({
 
   // ── Save & Delete Handlers for DIB (Direct to Supabase, no localStorage) ───
   const handleSaveDIB = async (bulletin: DIBRecord) => {
+    const validId = bulletin.id && isUUID(bulletin.id) ? bulletin.id : generateUUID();
+    const safeBulletin: DIBRecord = {
+      ...bulletin,
+      id: validId,
+    };
+
     // Optimistically update UI state and switch to table view immediately
-    const isEdit = dibRecords.some((b) => b.id === bulletin.id);
+    const isEdit = dibRecords.some((b) => b.id === validId || b.id === bulletin.id);
     const updated = isEdit
-      ? dibRecords.map((b) => (b.id === bulletin.id ? bulletin : b))
-      : [bulletin, ...dibRecords];
+      ? dibRecords.map((b) => (b.id === validId || b.id === bulletin.id ? safeBulletin : b))
+      : [safeBulletin, ...dibRecords];
     setDibRecords(updated);
     setDibViewMode('table'); // Display table after saving
 
     // Direct Supabase synchronization
     if (isSupabaseConfigured() && supabase) {
+      const isoDatetime = parseDTGToIso(safeBulletin.datetime);
+      const dbPayload = {
+        id: validId,
+        dib_id: safeBulletin.dib_id,
+        bulletin_number: safeBulletin.dib_id,
+        title: safeBulletin.activity,
+        activity: safeBulletin.activity,
+        details: safeBulletin.details || '',
+        datetime: isoDatetime,
+        date: isoDatetime.slice(0, 10),
+        mgrs: safeBulletin.mgrs,
+        threat_group: safeBulletin.threat_group,
+        threat_group_other: safeBulletin.threat_group_other || '',
+        threat_actor: safeBulletin.threat_group,
+        personality_victim: safeBulletin.personality_victim || 'N/A',
+        motive: safeBulletin.motive,
+        source: safeBulletin.source_evaluation || 'HUMINT',
+        source_evaluation: safeBulletin.source_evaluation,
+        type: safeBulletin.type,
+        threat_level: safeBulletin.type === 'Violent' ? 'HIGH' : 'MEDIUM',
+        classification: 'SECRET',
+        address: safeBulletin.address,
+        target_area: safeBulletin.address || '',
+        province: safeBulletin.province || 'Maguindanao del Sur',
+        municipality: safeBulletin.municipality || '',
+        barangay: safeBulletin.barangay || '',
+        purok_sitio: safeBulletin.purok_sitio || '',
+        content: safeBulletin.details || safeBulletin.activity || '',
+        lat: Number(safeBulletin.lat) || 6.95,
+        lng: Number(safeBulletin.lng) || 124.47,
+        created_at: safeBulletin.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
       try {
-        const { error } = await supabase.from('intel_dib').upsert([bulletin]);
+        const { error } = await supabase.from('intel_dib').upsert([dbPayload]);
         if (error) {
-          console.warn('Supabase intel_dib upsert notice:', error.message);
+          console.error('Supabase intel_dib upsert error:', error.message);
+          setSupabaseTableNotice(`Supabase Notice: Could not save to intel_dib (${error.message}).`);
+        } else {
+          setSupabaseTableNotice(null);
         }
-      } catch (err) {
-        console.warn('Supabase intel_dib save notice:', err);
+      } catch (err: any) {
+        console.error('Supabase intel_dib save exception:', err);
+        setSupabaseTableNotice(`Supabase error: ${err.message || String(err)}`);
       }
 
       // Mirror to unified records table for cross-cell tactical map markers
       try {
         const recordMirror: Partial<RecordItem> = {
-          id: bulletin.id,
-          code: bulletin.dib_id,
-          title: `[${bulletin.type.toUpperCase()}] ${bulletin.threat_group} — ${bulletin.activity.slice(0, 50)}`,
+          id: validId,
+          code: safeBulletin.dib_id,
+          title: `[${safeBulletin.type.toUpperCase()}] ${safeBulletin.threat_group} — ${safeBulletin.activity.slice(0, 50)}`,
           category: 'reports',
-          description: bulletin.details ? `${bulletin.activity} — ${bulletin.details}` : bulletin.activity,
+          description: safeBulletin.details ? `${safeBulletin.activity} — ${safeBulletin.details}` : safeBulletin.activity,
           status: 'active',
-          priority: bulletin.type === 'Violent' ? 'high' : 'medium',
-          lat: bulletin.lat || 7.2236,
-          lng: bulletin.lng || 124.2464,
-          location_name: bulletin.address,
+          priority: safeBulletin.type === 'Violent' ? 'high' : 'medium',
+          lat: safeBulletin.lat || 7.2236,
+          lng: safeBulletin.lng || 124.2464,
+          location_name: safeBulletin.address,
           metadata: {
             intel_type: 'dib',
-            dib_id: bulletin.dib_id,
-            activity: bulletin.activity,
-            details: bulletin.details,
-            datetime: bulletin.datetime,
-            mgrs: bulletin.mgrs,
-            threat_group: bulletin.threat_group,
-            threat_group_other: bulletin.threat_group_other,
-            personality_victim: bulletin.personality_victim,
-            motive: bulletin.motive,
-            source_evaluation: bulletin.source_evaluation,
-            type: bulletin.type,
-            address: bulletin.address,
-            province: bulletin.province,
-            municipality: bulletin.municipality,
-            barangay: bulletin.barangay,
-            purok_sitio: bulletin.purok_sitio,
+            dib_id: safeBulletin.dib_id,
+            activity: safeBulletin.activity,
+            details: safeBulletin.details,
+            datetime: safeBulletin.datetime,
+            mgrs: safeBulletin.mgrs,
+            threat_group: safeBulletin.threat_group,
+            threat_group_other: safeBulletin.threat_group_other,
+            personality_victim: safeBulletin.personality_victim,
+            motive: safeBulletin.motive,
+            source_evaluation: safeBulletin.source_evaluation,
+            type: safeBulletin.type,
+            address: safeBulletin.address,
+            province: safeBulletin.province,
+            municipality: safeBulletin.municipality,
+            barangay: safeBulletin.barangay,
+            purok_sitio: safeBulletin.purok_sitio,
           },
           updated_at: new Date().toISOString(),
         };
@@ -911,6 +979,18 @@ export default function IntelligenceCellWorkspace({
     setTimeout(() => setCopiedMgrs(null), 2500);
   };
 
+  // Format DIB datetime for military briefing display
+  const formatDIBDateTime = (dt?: string) => {
+    if (!dt) return '—';
+    const trimmed = dt.trim();
+    if (/^\d{6}Z\s+[A-Za-z]{3}\s+\d{2}/i.test(trimmed)) return trimmed;
+    try {
+      const parsed = Date.parse(trimmed);
+      if (!isNaN(parsed)) return toZuluDTG(trimmed);
+    } catch {}
+    return trimmed;
+  };
+
   // ── Filtered DIB Records ───────────────────────────────────────────────────
   const filteredDIBs = useMemo(() => {
     return dibRecords.filter((b) => {
@@ -969,34 +1049,34 @@ export default function IntelligenceCellWorkspace({
     });
   }, [enemyProfiles, profileSearch, profileThreatFilter, profileValueFilter]);
 
-  // Active DIB stats
+  // Active DIB stats (reactively derived from filteredDIBs)
   const violentDIBCount = useMemo(
-    () => dibRecords.filter((d) => d.type === 'Violent').length,
-    [dibRecords]
+    () => filteredDIBs.filter((d) => d.type === 'Violent').length,
+    [filteredDIBs]
   );
   const nonViolentDIBCount = useMemo(
-    () => dibRecords.filter((d) => d.type === 'Non-Violent').length,
-    [dibRecords]
+    () => filteredDIBs.filter((d) => d.type === 'Non-Violent').length,
+    [filteredDIBs]
   );
   const uniqueThreatGroupsCount = useMemo(
-    () => new Set(dibRecords.map((d) => d.threat_group)).size,
-    [dibRecords]
+    () => new Set(filteredDIBs.map((d) => d.threat_group)).size,
+    [filteredDIBs]
   );
   const activeHostileCount = useMemo(
-    () => enemyLocations.filter((e) => e.status === 'active_tracking').length,
-    [enemyLocations]
+    () => filteredEnemyLocations.filter((e) => e.status === 'active_tracking').length,
+    [filteredEnemyLocations]
   );
   const hviProfilesCount = useMemo(
-    () => enemyProfiles.filter((p) => p.value === 'HVI').length,
-    [enemyProfiles]
+    () => filteredProfiles.filter((p) => p.value === 'HVI').length,
+    [filteredProfiles]
   );
   const nonHviProfilesCount = useMemo(
-    () => enemyProfiles.filter((p) => p.value === 'Non-HVI').length,
-    [enemyProfiles]
+    () => filteredProfiles.filter((p) => p.value === 'Non-HVI').length,
+    [filteredProfiles]
   );
   const uniqueProfileThreatGroups = useMemo(
-    () => new Set(enemyProfiles.map((p) => p.threat_group)).size,
-    [enemyProfiles]
+    () => new Set(filteredProfiles.map((p) => p.threat_group)).size,
+    [filteredProfiles]
   );
 
   return (
@@ -1078,27 +1158,38 @@ export default function IntelligenceCellWorkspace({
       {/* ────────────────────────────────────────────────────────────────────── */}
       {activeTab === 'dib' && (
         <div className="space-y-4">
-          {/* Stat Cards */}
+          {/* Stat Cards (Reactive to search & filters) */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="p-3.5 rounded-lg bg-white border border-slate-200 shadow-sm">
-              <div className="text-[10px] font-sans text-slate-500 uppercase">Total DIB Records</div>
-              <div className="text-2xl font-sans font-bold text-slate-900 mt-1">{dibRecords.length}</div>
-              <div className="text-[11px] font-sans text-blue-600 mt-0.5">Automated Supabase Ingestion</div>
+              <div className="text-[10px] font-sans text-slate-500 uppercase flex items-center justify-between">
+                <span>Total DIB Records</span>
+                {(dibSearch || dibTypeFilter !== 'all' || dibThreatGroupFilter !== 'all' || dibMotiveFilter !== 'all') && (
+                  <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                    Filtered
+                  </span>
+                )}
+              </div>
+              <div className="text-2xl font-sans font-bold text-slate-900 mt-1">{filteredDIBs.length}</div>
+              <div className="text-[11px] font-sans text-slate-500 mt-0.5">
+                {(dibSearch || dibTypeFilter !== 'all' || dibThreatGroupFilter !== 'all' || dibMotiveFilter !== 'all')
+                  ? `of ${dibRecords.length} total bulletins`
+                  : 'Daily Intelligence Bulletins'}
+              </div>
             </div>
             <div className="p-3.5 rounded-lg bg-white border border-slate-200 shadow-sm">
               <div className="text-[10px] font-sans text-slate-500 uppercase">Violent Incidents</div>
               <div className="text-2xl font-sans font-bold text-blue-700 mt-1">{violentDIBCount}</div>
-              <div className="text-[11px] font-sans text-slate-800/80 mt-0.5">Clashes, Rido, Hostile Action</div>
+              <div className="text-[11px] font-sans text-slate-500 mt-0.5">Active Kinetic Hostilities</div>
             </div>
             <div className="p-3.5 rounded-lg bg-white border border-slate-200 shadow-sm">
               <div className="text-[10px] font-sans text-slate-500 uppercase">Non-Violent Reports</div>
               <div className="text-2xl font-sans font-bold text-blue-600 mt-1">{nonViolentDIBCount}</div>
-              <div className="text-[11px] font-sans text-slate-700/80 mt-0.5">Movement, Intelligence Tips</div>
+              <div className="text-[11px] font-sans text-slate-500 mt-0.5">Surveillance & Logistics</div>
             </div>
             <div className="p-3.5 rounded-lg bg-white border border-slate-200 shadow-sm">
               <div className="text-[10px] font-sans text-slate-500 uppercase">Active Threat Groups</div>
               <div className="text-2xl font-sans font-bold text-blue-600 mt-1">{uniqueThreatGroupsCount}</div>
-              <div className="text-[11px] font-sans text-slate-800/80 mt-0.5">BIFF, DIHG, PAGs, PIAGs...</div>
+              <div className="text-[11px] font-sans text-slate-500 mt-0.5">Represented in View</div>
             </div>
           </div>
 
@@ -1191,7 +1282,7 @@ export default function IntelligenceCellWorkspace({
               className="flex items-center justify-center space-x-2 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-sans font-bold transition-all shadow-md active:scale-95 shrink-0"
             >
               <Plus className="w-4 h-4" />
-              <span>Generate DIB</span>
+              <span>Add DIB</span>
             </button>
           </div>
 
@@ -1239,7 +1330,7 @@ export default function IntelligenceCellWorkspace({
                   {filteredDIBs.map((b) => (
                     <tr key={b.id} className="hover:bg-slate-100 transition-colors">
                       <td className="py-2.5 px-3 text-blue-600 font-bold whitespace-nowrap">{b.dib_id}</td>
-                      <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">{b.datetime}</td>
+                      <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">{formatDIBDateTime(b.datetime)}</td>
                       <td className="py-2.5 px-3 whitespace-nowrap">
                         <span
                           className={`px-2 py-0.5 rounded text-[9px] font-bold ${
@@ -1362,7 +1453,7 @@ export default function IntelligenceCellWorkspace({
                         <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-amber-950 text-slate-800 border border-amber-800">
                           {bulletin.threat_group}
                         </span>
-                        <span className="text-[10px] font-sans text-slate-500">{bulletin.datetime}</span>
+                        <span className="text-[10px] font-sans text-slate-500">{formatDIBDateTime(bulletin.datetime)}</span>
                       </div>
                     </div>
 
@@ -1471,9 +1562,18 @@ export default function IntelligenceCellWorkspace({
           {/* Stat Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="p-3.5 rounded-lg bg-white border border-slate-200 shadow-sm">
-              <div className="text-[10px] font-sans text-slate-500 uppercase">Tracked Enemy Locations</div>
-              <div className="text-2xl font-sans font-bold text-blue-700 mt-1">{enemyLocations.length}</div>
-              <div className="text-[11px] font-sans text-slate-800/80 mt-0.5">Active Hostile Beacons</div>
+              <div className="text-[10px] font-sans text-slate-500 uppercase flex items-center justify-between">
+                <span>Tracked Enemy Locations</span>
+                {(enemyLocSearch || enemyLocThreatFilter !== 'all' || enemyLocStatusFilter !== 'all') && (
+                  <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">Filtered</span>
+                )}
+              </div>
+              <div className="text-2xl font-sans font-bold text-blue-700 mt-1">{filteredEnemyLocations.length}</div>
+              <div className="text-[11px] font-sans text-slate-800/80 mt-0.5">
+                {(enemyLocSearch || enemyLocThreatFilter !== 'all' || enemyLocStatusFilter !== 'all')
+                  ? `of ${enemyLocations.length} active beacons`
+                  : 'Active Hostile Beacons'}
+              </div>
             </div>
             <div className="p-3.5 rounded-lg bg-white border border-slate-200 shadow-sm">
               <div className="text-[10px] font-sans text-slate-500 uppercase">Active Tracking Status</div>
@@ -1483,7 +1583,7 @@ export default function IntelligenceCellWorkspace({
             <div className="p-3.5 rounded-lg bg-white border border-slate-200 shadow-sm">
               <div className="text-[10px] font-sans text-slate-500 uppercase">Critical Threat Elements</div>
               <div className="text-2xl font-sans font-bold text-blue-600 mt-1">
-                {enemyLocations.filter((e) => e.threat_level === 'critical').length}
+                {filteredEnemyLocations.filter((e) => e.threat_level === 'critical').length}
               </div>
               <div className="text-[11px] font-sans text-slate-800/80 mt-0.5">Immediate Ambush / Clash Risk</div>
             </div>
@@ -1497,88 +1597,14 @@ export default function IntelligenceCellWorkspace({
             </div>
           </div>
 
-          {/* Action Bar & Filters */}
-          <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2 flex-1">
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search hostile unit, MGRS grid, province, activity..."
-                  value={enemyLocSearch}
-                  onChange={(e) => setEnemyLocSearch(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs font-sans text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
-                />
-              </div>
-
-              {/* Threat Filter */}
-              <select
-                value={enemyLocThreatFilter}
-                onChange={(e) => setEnemyLocThreatFilter(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-sans text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
-              >
-                <option value="all">All Threat Levels</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
-
-              {/* Status Filter */}
-              <select
-                value={enemyLocStatusFilter}
-                onChange={(e) => setEnemyLocStatusFilter(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-sans text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
-              >
-                <option value="all">All Tracking Statuses</option>
-                <option value="active_tracking">Active Tracking</option>
-                <option value="lost_contact">Lost Contact</option>
-                <option value="engaged">Troops in Contact</option>
-                <option value="neutralized">Neutralized</option>
-                <option value="cleared">Cleared</option>
-              </select>
-            </div>
-
-            <button
-              onClick={() => {
-                setEditingEnemyLoc(null);
-                setIsEnemyLocModalOpen(true);
-              }}
-              className="flex items-center justify-center space-x-2 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-sans font-bold transition-all shadow-md active:scale-95 shrink-0"
-            >
-              <Crosshair className="w-4 h-4" />
-              <span>Log Enemy Sighting</span>
-            </button>
-          </div>
+     
+          
 
           {/* Map + Enemy Profiles Side-by-Side Layout */}
           <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
             {/* Tactical Map (4/5 = 80%) */}
             <div className="xl:col-span-4 space-y-2">
-              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-t-xl flex items-center justify-between">
-                <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                  <Crosshair className="w-4 h-4 text-blue-700" />
-                  <span className="text-xs font-sans font-bold text-slate-900 uppercase tracking-wider">
-                    Hostile GIS Tactical Grid (Enemy MGRS Plot)
-                  </span>
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-sans font-bold bg-rose-950 text-slate-800 border border-rose-800">
-                    {enemyMapRecords.length} SIGHTINGS
-                  </span>
-                  {enemyProfileMapRecords.length > 0 && (
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-sans font-bold bg-rose-950 text-slate-800 border border-rose-800">
-                      {enemyProfileMapRecords.length} HVT PROFILES
-                    </span>
-                  )}
-                  {dibMapRecords.length > 0 && (
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-sans font-bold bg-slate-50 text-slate-800 border border-rose-700/60">
-                      {dibMapRecords.length} DIB REPORTS
-                    </span>
-                  )}
-                </div>
-                <span className="text-[11px] font-sans text-slate-500">
-                  Click markers to inspect hostile coordinates
-                </span>
-              </div>
+              
               {/* Map legend */}
               <div className="px-3 py-2 bg-slate-50/60 border-x border-slate-200 flex items-center gap-5 flex-wrap">
                 <div className="flex items-center gap-2">
@@ -1853,9 +1879,18 @@ export default function IntelligenceCellWorkspace({
           {/* Stat Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="p-3.5 rounded-lg bg-white border border-slate-200 shadow-sm">
-              <div className="text-[10px] font-sans text-slate-500 uppercase">Profiled Hostile Targets</div>
-              <div className="text-2xl font-sans font-bold text-blue-600 mt-1">{enemyProfiles.length}</div>
-              <div className="text-[11px] font-sans text-slate-700/80 mt-0.5">Cataloged Target Profiles</div>
+              <div className="text-[10px] font-sans text-slate-500 uppercase flex items-center justify-between">
+                <span>Profiled Hostile Targets</span>
+                {(profileSearch || profileThreatFilter !== 'all' || profileValueFilter !== 'all') && (
+                  <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">Filtered</span>
+                )}
+              </div>
+              <div className="text-2xl font-sans font-bold text-blue-600 mt-1">{filteredProfiles.length}</div>
+              <div className="text-[11px] font-sans text-slate-700/80 mt-0.5">
+                {(profileSearch || profileThreatFilter !== 'all' || profileValueFilter !== 'all')
+                  ? `of ${enemyProfiles.length} target profiles`
+                  : 'Cataloged Target Profiles'}
+              </div>
             </div>
             <div className="p-3.5 rounded-lg bg-white border border-slate-200 shadow-sm">
               <div className="text-[10px] font-sans text-slate-500 uppercase">High-Value Individuals (HVI)</div>
@@ -2359,7 +2394,7 @@ NOTIFY pgrst, 'reload schema';`;
                 </div>
                 <div className="flex items-center space-x-1.5 text-slate-500">
                   <Clock className="w-3.5 h-3.5 text-blue-600" />
-                  <span>DTG: {viewingDib.datetime}</span>
+                  <span>DTG: {formatDIBDateTime(viewingDib.datetime)}</span>
                 </div>
               </div>
 
@@ -2442,7 +2477,7 @@ NOTIFY pgrst, 'reload schema';`;
             <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
               <button
                 onClick={() => {
-                  const formatted = `=== DAILY INTELLIGENCE BULLETIN ===\nDIB ID: ${viewingDib.dib_id}\nDATE & TIME: ${viewingDib.datetime}\nTYPE: ${viewingDib.type}\nTHREAT GROUP: ${viewingDib.threat_group}\nACTIVITY: ${viewingDib.activity}\nDETAILS: ${viewingDib.details || 'N/A'}\nPERSONALITY / VICTIM: ${viewingDib.personality_victim}\nMOTIVE: ${viewingDib.motive}\nADDRESS: ${viewingDib.address}\nMGRS: ${viewingDib.mgrs}\nSOURCE/EVALUATION: ${viewingDib.source_evaluation}`;
+                  const formatted = `=== DAILY INTELLIGENCE BULLETIN ===\nDIB ID: ${viewingDib.dib_id}\nDATE & TIME: ${formatDIBDateTime(viewingDib.datetime)}\nTYPE: ${viewingDib.type}\nTHREAT GROUP: ${viewingDib.threat_group}\nACTIVITY: ${viewingDib.activity}\nDETAILS: ${viewingDib.details || 'N/A'}\nPERSONALITY / VICTIM: ${viewingDib.personality_victim}\nMOTIVE: ${viewingDib.motive}\nADDRESS: ${viewingDib.address}\nMGRS: ${viewingDib.mgrs}\nSOURCE/EVALUATION: ${viewingDib.source_evaluation}`;
                   handleCopyText(formatted, `view-dib-${viewingDib.id}`);
                 }}
                 className="flex items-center space-x-1.5 px-3 py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-sans border border-slate-200 transition-colors"
