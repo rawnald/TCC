@@ -35,7 +35,7 @@ const RANK_OPTIONS = [
   '2LT', '1LT', 'CPT', 'MAJ', 'LTC', 'COL', 'BGEN', 'MGEN', 'LTGEN', 'GEN', 'Chr',
 ];
 
-const AFPOS_OPTIONS = ['INF', 'FA', 'CAV', 'CE', 'MI', 'SC', 'FS', 'OS', 'QMS', 'AGS', 'CMO', 'N/A'];
+const AFPOS_OPTIONS = ['INF', 'FA', 'CAV', 'CE', 'MI', 'SC', 'FS', 'OS', 'QMS', 'AGS', 'CMO', 'Others'];
 
 const BRANCH_OPTIONS: BranchOfService[] = ['PA', 'PAF', 'PN', 'PN(M)'];
 
@@ -52,6 +52,7 @@ export default function DLTRecordModal({
   const [name, setName] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
   const [afpos, setAfpos] = useState('INF');
+  const [customAfpos, setCustomAfpos] = useState('');
   const [branchOfService, setBranchOfService] = useState<BranchOfService>('PA');
 
   // Other fields
@@ -122,7 +123,15 @@ export default function DLTRecordModal({
       setRank(editingRecord.rank || 'MAJ');
       setName(editingRecord.name || '');
       setSerialNumber(editingRecord.serial_number || '');
-      setAfpos(editingRecord.afpos || 'INF');
+      const af = editingRecord.afpos || 'INF';
+      const isKnownAf = ['INF', 'FA', 'CAV', 'CE', 'MI', 'SC', 'FS', 'OS', 'QMS', 'AGS', 'CMO'].includes(af);
+      if (isKnownAf) {
+        setAfpos(af);
+        setCustomAfpos('');
+      } else {
+        setAfpos('Others');
+        setCustomAfpos(af === 'N/A' || af === 'Others' ? '' : af);
+      }
       setBranchOfService((editingRecord.branch_of_service as BranchOfService) || 'PA');
       setDesignation(editingRecord.designation || '');
       // If record has a real unit_id, use it; otherwise show "Other" with the unit_name
@@ -148,6 +157,7 @@ export default function DLTRecordModal({
       setName('');
       setSerialNumber('');
       setAfpos('INF');
+      setCustomAfpos('');
       setBranchOfService('PA');
       setDesignation('');
       setUnitId('');
@@ -202,15 +212,22 @@ export default function DLTRecordModal({
       return;
     }
 
+    if (afpos === 'Others' && !customAfpos.trim()) {
+      setErrorMessage('Please specify the custom AFPOS.');
+      return;
+    }
+
     setIsSaving(true);
     setErrorMessage(null);
+
+    const finalAfpos = afpos === 'Others' ? customAfpos.trim() || 'Others' : afpos.trim();
 
     const recordToSave: DLTRecord = {
       id: editingRecord?.id && isUUID(editingRecord.id) ? editingRecord.id : generateUUID(),
       rank: rank.trim(),
       name: name.trim(),
       serial_number: serialNumber.trim(),
-      afpos: afpos.trim(),
+      afpos: finalAfpos,
       branch_of_service: branchOfService,
       designation: designation.trim(),
       unit_id: (unitId && unitId !== '__other__') ? unitId : undefined,
@@ -340,6 +357,18 @@ export default function DLTRecordModal({
                     <option key={a} value={a}>{a}</option>
                   ))}
                 </select>
+                {afpos === 'Others' && (
+                  <div className="mt-2">
+                    <input
+                      type="text"
+                      placeholder="Specify custom AFPOS (e.g. JAGS, NC, CHS)..."
+                      value={customAfpos}
+                      onChange={(e) => setCustomAfpos(e.target.value)}
+                      className={`${inputCls} border-blue-400 bg-blue-50 focus:border-blue-600`}
+                      autoFocus
+                    />
+                  </div>
+                )}
               </div>
               <div>
                 <label className={labelCls}>Branch of Service</label>

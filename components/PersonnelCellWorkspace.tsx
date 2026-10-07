@@ -639,7 +639,11 @@ export default function PersonnelCellWorkspace({
 
       const matchesUnit = unitFilter === 'all' || u === unitFilter;
       const matchesRank = rankFilter === 'all' || p.rank === rankFilter;
-      const matchesAfpos = afposFilter === 'all' || p.afpos === afposFilter;
+      const matchesAfpos =
+        afposFilter === 'all' ||
+        (afposFilter === 'Others'
+          ? !['INF', 'FA', 'CAV', 'CE', 'MI', 'SC', 'FS', 'OS', 'QMS', 'AGS', 'CMO'].includes(p.afpos || '')
+          : p.afpos === afposFilter);
       const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
       const matchesRemarks = remarksFilter === 'all' || p.remarks === remarksFilter;
 
@@ -1418,7 +1422,7 @@ NOTIFY pgrst, 'reload schema';`;
                 className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-sans text-slate-700 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer"
               >
                 <option value="all">All AFPOS</option>
-                {['INF', 'FA', 'CAV', 'CE', 'MI', 'SC', 'FS', 'OS', 'QMS', 'AGS', 'CMO', 'N/A'].map((a) => (
+                {['INF', 'FA', 'CAV', 'CE', 'MI', 'SC', 'FS', 'OS', 'QMS', 'AGS', 'CMO', 'Others'].map((a) => (
                   <option key={a} value={a}>
                     {a}
                   </option>

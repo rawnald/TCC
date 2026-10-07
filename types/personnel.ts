@@ -36,7 +36,7 @@ export type AFPOSBranch =
   | 'QMS'
   | 'AGS'
   | 'CMO'
-  | 'N/A'
+  | 'Others'
   | string;
 
 export type PersonnelStatus =
@@ -73,6 +73,7 @@ export interface MilitaryProfile {
   middle_name?: string;
   serial_number: string;
   afpos: AFPOSBranch;
+  afpos_other?: string;
   designation: string;
   address?: string;
   contact_number?: string;

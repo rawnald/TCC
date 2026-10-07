@@ -75,7 +75,7 @@ const AFPOS_OPTIONS: { value: AFPOSBranch; label: string }[] = [
   { value: 'QMS', label: 'QMS — Quartermaster Service' },
   { value: 'AGS', label: 'AGS — Adjutant General Service' },
   { value: 'CMO', label: 'CMO — Civil-Military Operations' },
-  { value: 'N/A', label: 'N/A — Non-Branch / Unassigned' },
+  { value: 'Others', label: 'Others (Specify Custom AFPOS)' },
 ];
 
 const STATUS_OPTIONS: { value: PersonnelStatus; label: string }[] = [
@@ -117,6 +117,7 @@ export default function PersonnelProfileModal({
   const [middleName, setMiddleName] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
   const [afpos, setAfpos] = useState<AFPOSBranch>('INF');
+  const [customAfpos, setCustomAfpos] = useState('');
   const [designation, setDesignation] = useState('');
   const [contactNumber, setContactNumber] = useState('');
   const [address, setAddress] = useState('');
@@ -199,7 +200,16 @@ export default function PersonnelProfileModal({
       setFirstName(initialProfile.first_name || '');
       setMiddleName(initialProfile.middle_name || '');
       setSerialNumber(initialProfile.serial_number || '');
-      setAfpos(initialProfile.afpos || 'INF');
+      // AFPOS
+      const af = initialProfile.afpos || 'INF';
+      const isKnownAf = ['INF', 'FA', 'CAV', 'CE', 'MI', 'SC', 'FS', 'OS', 'QMS', 'AGS', 'CMO'].includes(af);
+      if (isKnownAf) {
+        setAfpos(af as AFPOSBranch);
+        setCustomAfpos('');
+      } else {
+        setAfpos('Others');
+        setCustomAfpos(af === 'N/A' || af === 'Others' ? (initialProfile.afpos_other || '') : af);
+      }
       setDesignation(initialProfile.designation || initialProfile.position_role || '');
       setContactNumber(initialProfile.contact_number || initialProfile.mobile_number || '');
       setAddress(initialProfile.address || initialProfile.current_location || '');
@@ -241,6 +251,7 @@ export default function PersonnelProfileModal({
       setMiddleName('');
       setSerialNumber('RA-' + Math.floor(10000000 + Math.random() * 90000000));
       setAfpos('INF');
+      setCustomAfpos('');
       setDesignation('');
       setContactNumber('');
       setAddress('');
@@ -325,6 +336,12 @@ export default function PersonnelProfileModal({
       return;
     }
 
+    if (afpos === 'Others' && !customAfpos.trim()) {
+      setSaveError('Please specify the custom AFPOS.');
+      return;
+    }
+
+    const finalAfpos = afpos === 'Others' ? customAfpos.trim() || 'Others' : afpos;
     const finalStatus = status === 'Others' ? customStatus.trim() || 'Others' : status;
     const finalRemarks = remarks === 'Others' ? customRemarks.trim() || 'Others' : remarks;
     const finalId = initialProfile?.id && isUUID(initialProfile.id) ? initialProfile.id : generateUUID();
@@ -337,7 +354,8 @@ export default function PersonnelProfileModal({
       first_name: firstName.trim(),
       middle_name: middleName.trim() || undefined,
       serial_number: serialNumber.trim(),
-      afpos,
+      afpos: finalAfpos,
+      afpos_other: afpos === 'Others' ? customAfpos.trim() : undefined,
       designation: designation.trim(),
       contact_number: contactNumber.trim() || undefined,
       mobile_number: contactNumber.trim() || undefined,
@@ -368,7 +386,7 @@ export default function PersonnelProfileModal({
           first_name: firstName.trim(),
           middle_name: middleName.trim() || '',
           serial_number: serialNumber.trim(),
-          afpos,
+          afpos: finalAfpos,
           designation: designation.trim(),
           address: address.trim() || '',
           contact_number: contactNumber.trim() || '',
@@ -595,6 +613,20 @@ export default function PersonnelProfileModal({
                     </option>
                   ))}
                 </select>
+
+                {afpos === 'Others' && (
+                  <div className="mt-2">
+                    <input
+                      type="text"
+                      required
+                      value={customAfpos}
+                      onChange={(e) => setCustomAfpos(e.target.value)}
+                      placeholder="Specify custom AFPOS (e.g. JAGS, NC, CHS)..."
+                      className="w-full bg-white border border-blue-400 rounded-lg px-3 py-1.5 text-xs font-sans text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 font-medium shadow-sm"
+                      autoFocus
+                    />
+                  </div>
+                )}
               </div>
 
               <div>
