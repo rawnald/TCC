@@ -353,11 +353,9 @@ export default function DIBModal({
             </div>
             <div>
               <h2 className="text-sm font-sans font-bold text-slate-900 uppercase tracking-wide">
-                {initialData ? 'Edit Daily Intelligence Bulletin (DIB)' : 'Generate Daily Intelligence Bulletin (DIB)'}
+                {initialData ? 'Edit Daily Intelligence Brief (DIB)' : 'Add Daily Intelligence Brief (DIB)'}
               </h2>
-              <p className="text-[11px] font-sans text-blue-600/80">
-                G2 Intelligence Cell // Automated Supabase Ingestion & Tactical Record
-              </p>
+              
             </div>
           </div>
           <button
